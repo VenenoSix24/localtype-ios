@@ -1,0 +1,85 @@
+import SwiftUI
+
+struct DeviceCard: View {
+    let device: DiscoveredDevice
+    let isConnected: Bool
+    let isPaired: Bool
+    let onTap: () -> Void
+    let onRemove: (() -> Void)?
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 14) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(isConnected ? Color.green.opacity(0.12) : Color(.tertiarySystemFill))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: iconForOS)
+                        .font(.system(size: 18))
+                        .foregroundStyle(isConnected ? .green : .secondary)
+                }
+
+                // Info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(device.displayName)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 6) {
+                        Text(device.ip)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospaced()
+
+                        if let os = device.os {
+                            Text(os.uppercased())
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(.quaternary, in: .capsule)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Status
+                if isConnected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.green)
+                } else if isPaired {
+                    Image(systemName: "wifi")
+                        .font(.title3)
+                        .foregroundStyle(.blue)
+                }
+            }
+            .padding(14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        .contextMenu {
+            if let onRemove, isPaired {
+                Button(role: .destructive) {
+                    onRemove()
+                } label: {
+                    Label("移除设备", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private var iconForOS: String {
+        switch device.os {
+        case "macos": return "desktopcomputer"
+        case "windows": return "pc"
+        case "linux": return "terminal"
+        default: return "display"
+        }
+    }
+}

@@ -1,0 +1,434 @@
+import Foundation
+import UIKit
+
+enum ConnectionStatus: String {
+    case disconnected, connecting, connected, error
+}
+
+enum AuthStatus: String {
+    case unauthenticated, pairingRequired, authenticated
+}
+
+@Observable
+@MainActor
+final class AppState {
+    // MARK: - Connection
+    var connectionStatus: ConnectionStatus = .disconnected
+    var authStatus: AuthStatus = .unauthenticated
+    var remoteServerName: String = ""
+    var remoteServerIP: String = ""
+    var remoteServerId: String = ""
+    var remoteServerOS: String = ""
+
+    // MARK: - Devices
+    var discoveredDevices: [DiscoveredDevice] = []
+    var pairedDevices: [DiscoveredDevice] = []
+    var isScanning: Bool = false
+
+    // MARK: - Messages
+    var messages: [Message] = []
+    var inputText: String = ""
+
+    // MARK: - Quick Phrases
+    var quickPhrases: [QuickPhrase] = []
+
+    // MARK: - Statistics
+    var totalChars: Int = 0
+    var todayChars: Int = 0
+    private var todayDate: String = ""
+
+    // MARK: - Device Identity
+    let deviceId: String
+    var deviceName: String {
+        didSet { storage.deviceName = deviceName }
+    }
+
+    // MARK: - Injection
+    var injectionMethod: String = "unicode" {
+        didSet { storage.injectionMethod = injectionMethod }
+    }
+
+    // MARK: - Update
+    var currentVersion: String = ""
+    var updateInfo: UpdateInfo?
+    var isCheckingUpdate: Bool = false
+
+    // MARK: - Appearance
+    var colorScheme: String = "system" {
+        didSet { storage.colorScheme = colorScheme }
+    }
+
+    // MARK: - Pairing
+    var showingPairingSheet: Bool = false
+
+    // MARK: - Private
+    private let storage = StorageService.shared
+    private let discovery = DiscoveryService()
+    private let ws = WebSocketService()
+    private var lastConnectedIP: String?
+    private var connectTimer: DispatchSourceTimer?
+
+    init() {
+        deviceId = storage.deviceId
+        deviceName = storage.deviceName
+        loadState()
+        setupWebSocket()
+        setupDiscovery()
+        checkToday()
+    }
+
+    // MARK: - State Loading
+
+    private func loadState() {
+        pairedDevices = storage.loadPairedDevices()
+        quickPhrases = storage.loadQuickPhrases()
+        totalChars = storage.totalChars
+        todayChars = storage.todayChars
+        todayDate = storage.todayDate
+        injectionMethod = storage.injectionMethod
+        colorScheme = storage.colorScheme
+        currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+    }
+
+    // MARK: - Discovery
+
+    private func setupDiscovery() {
+        discovery.onDeviceFound = { [weak self] device in
+            guard let self else { return }
+            if let idx = self.discoveredDevices.firstIndex(where: { $0.id == device.id }) {
+                self.discoveredDevices[idx] = device
+            } else {
+                self.discoveredDevices.append(device)
+            }
+            if let pIdx = self.pairedDevices.firstIndex(where: { $0.id == device.id }) {
+                self.pairedDevices[pIdx].ip = device.ip
+                self.pairedDevices[pIdx].name = device.name
+                self.pairedDevices[pIdx].os = device.os
+                self.pairedDevices[pIdx].isOnline = true
+            }
+        }
+        discovery.onScanComplete = { [weak self] in
+            self?.isScanning = false
+        }
+    }
+
+    func startScanning() {
+        isScanning = true
+        discoveredDevices.removeAll()
+        discovery.startScanning()
+    }
+
+    func stopScanning() {
+        discovery.stopScanning()
+        isScanning = false
+    }
+
+    // MARK: - WebSocket
+
+    private func setupWebSocket() {
+        ws.onConnected = { [weak self] in
+            guard let self else { return }
+            self.connectionStatus = .connected
+            self.addSystemMessage("已连接到 \(self.remoteServerName)")
+            let tokens = self.storage.loadTokens()
+            let token = !self.remoteServerId.isEmpty
+                ? tokens[self.remoteServerId]
+                : tokens[self.remoteServerIP]
+            if let token {
+                self.ws.send(WebSocketService.authMessage(deviceId: self.deviceId, token: token))
+            } else {
+                self.ws.send(WebSocketService.requestPairingMessage(deviceName: self.deviceName, deviceId: self.deviceId))
+            }
+        }
+
+        ws.onDisconnected = { [weak self] in
+            guard let self else { return }
+            if self.connectionStatus != .disconnected {
+                self.connectionStatus = .disconnected
+                self.authStatus = .unauthenticated
+                self.addSystemMessage("已断开连接")
+            }
+        }
+
+        ws.onMessage = { [weak self] json in
+            self?.handleMessage(json)
+        }
+
+        ws.onError = { [weak self] _ in
+            self?.connectionStatus = .error
+        }
+    }
+
+    // MARK: - Connection
+
+    func connect(to ip: String) {
+        // Allow reconnecting even if currently connecting (cancel previous)
+        if connectionStatus == .connecting {
+            cancelConnect()
+        }
+        guard !(connectionStatus == .connected && lastConnectedIP == ip) else { return }
+
+        if let d = discoveredDevices.first(where: { $0.ip == ip }) ?? pairedDevices.first(where: { $0.ip == ip }) {
+            remoteServerName = d.name
+            remoteServerId = d.id
+            remoteServerOS = d.os ?? ""
+        } else {
+            remoteServerName = "桌面端 (\(ip))"
+            remoteServerId = ""
+        }
+
+        remoteServerIP = ip
+        lastConnectedIP = ip
+        connectionStatus = .connecting
+        authStatus = .unauthenticated
+        ws.connect(to: ip)
+
+        // 10 second timeout
+        let timer = DispatchSource.makeTimerSource()
+        timer.schedule(deadline: .now() + 10)
+        timer.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, self.connectionStatus == .connecting else { return }
+                self.connectionStatus = .error
+                self.ws.disconnect()
+                self.addSystemMessage("连接超时")
+            }
+        }
+        self.connectTimer = timer
+        timer.resume()
+    }
+
+    func cancelConnect() {
+        connectTimer?.cancel()
+        connectTimer = nil
+        ws.disconnect()
+        if connectionStatus == .connecting {
+            connectionStatus = .disconnected
+            authStatus = .unauthenticated
+        }
+    }
+
+    func disconnect() {
+        connectTimer?.cancel()
+        connectTimer = nil
+        ws.disconnect()
+        connectionStatus = .disconnected
+        authStatus = .unauthenticated
+        lastConnectedIP = nil
+        remoteServerName = ""
+    }
+
+    // MARK: - Message Handling
+
+    private func handleMessage(_ json: [String: Any]) {
+        let type = json["type"] as? String ?? ""
+
+        switch type {
+        case "pong":
+            break
+
+        case "pairingcoderequired":
+            authStatus = .pairingRequired
+            showingPairingSheet = true
+
+        case "pairingsuccess":
+            connectTimer?.cancel()
+            connectTimer = nil
+            if let token = json["token"] as? String {
+                let key = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
+                var tokens = storage.loadTokens()
+                tokens[key] = token
+                storage.saveTokens(tokens)
+            }
+            if let os = json["os"] as? String { remoteServerOS = os }
+            authStatus = .authenticated
+            savePairedDevice()
+
+        case "authsuccess":
+            connectTimer?.cancel()
+            connectTimer = nil
+            if let os = json["os"] as? String { remoteServerOS = os }
+            authStatus = .authenticated
+            savePairedDevice()
+
+        case "authfailed":
+            authStatus = .unauthenticated
+            let key = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
+            var tokens = storage.loadTokens()
+            tokens.removeValue(forKey: key)
+            storage.saveTokens(tokens)
+            disconnect()
+
+        case "unpaired":
+            let key = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
+            var tokens = storage.loadTokens()
+            tokens.removeValue(forKey: key)
+            storage.saveTokens(tokens)
+            disconnect()
+
+        case "ack":
+            if let msgId = json["msg_id"] as? String,
+               let idx = messages.firstIndex(where: { $0.id == msgId }) {
+                messages[idx].status = .acked
+            }
+
+        default:
+            break
+        }
+    }
+
+    // MARK: - Pairing
+
+    func submitPairingCode(_ code: String) {
+        ws.send(WebSocketService.verifyPairingMessage(
+            deviceId: deviceId, deviceName: deviceName, code: code))
+        showingPairingSheet = false
+    }
+
+    // MARK: - Paired Devices
+
+    private func savePairedDevice() {
+        guard !remoteServerIP.isEmpty else { return }
+        let device = DiscoveredDevice(
+            id: remoteServerId.isEmpty ? remoteServerIP : remoteServerId,
+            name: remoteServerName,
+            ip: remoteServerIP,
+            os: remoteServerOS,
+            discoveredAt: .now
+        )
+        if let idx = pairedDevices.firstIndex(where: { $0.id == device.id }) {
+            pairedDevices[idx] = device
+        } else {
+            pairedDevices.insert(device, at: 0)
+        }
+        storage.savePairedDevices(pairedDevices)
+    }
+
+    func toggleFavorite(_ device: DiscoveredDevice) {
+        if let idx = pairedDevices.firstIndex(where: { $0.id == device.id }) {
+            pairedDevices.remove(at: idx)
+        } else {
+            pairedDevices.append(device)
+        }
+        storage.savePairedDevices(pairedDevices)
+    }
+
+    func isPaired(_ device: DiscoveredDevice) -> Bool {
+        pairedDevices.contains(where: { $0.id == device.id })
+    }
+
+    func removePairedDevice(id: String) {
+        pairedDevices.removeAll(where: { $0.id == id })
+        storage.savePairedDevices(pairedDevices)
+        var tokens = storage.loadTokens()
+        tokens.removeValue(forKey: id)
+        storage.saveTokens(tokens)
+    }
+
+    // MARK: - Sending Text
+
+    func sendText() {
+        guard connectionStatus == .connected, authStatus == .authenticated else { return }
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        let msgId = "\(Int(Date().timeIntervalSince1970 * 1000))"
+        let message = Message(id: msgId, text: text, status: .sending)
+        messages.append(message)
+
+        ws.send(WebSocketService.sendMessage(content: text, method: injectionMethod, msgId: msgId))
+        if let idx = messages.firstIndex(where: { $0.id == msgId }) {
+            messages[idx].status = .sent
+        }
+
+        inputText = ""
+        addCharCount(text.count)
+    }
+
+    // MARK: - Statistics
+
+    private func checkToday() {
+        let key = Self.todayKey()
+        if todayDate != key {
+            todayDate = key
+            todayChars = 0
+            storage.todayDate = key
+            storage.todayChars = 0
+        }
+    }
+
+    private func addCharCount(_ count: Int) {
+        checkToday()
+        totalChars += count
+        todayChars += count
+        storage.totalChars = totalChars
+        storage.todayChars = todayChars
+    }
+
+    private static func todayKey() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
+    }
+
+    // MARK: - System Messages
+
+    private func addSystemMessage(_ text: String) {
+        messages.append(Message(text: text, type: .system, status: .acked))
+    }
+
+    // MARK: - Update Check
+
+    func checkForUpdate(silent: Bool = false) async {
+        isCheckingUpdate = true
+        do {
+            updateInfo = try await UpdateService.checkForUpdate()
+        } catch {
+            if !silent { updateInfo = nil }
+        }
+        isCheckingUpdate = false
+    }
+
+    func skipCurrentUpdate() {
+        guard let info = updateInfo else { return }
+        UpdateService.skipVersion(info.latestVersion)
+        updateInfo = nil
+    }
+
+    // MARK: - Quick Phrases
+
+    func addQuickPhrase(label: String, content: String) {
+        quickPhrases.append(QuickPhrase(label: label, content: content))
+        storage.saveQuickPhrases(quickPhrases)
+    }
+
+    func removeQuickPhrase(id: String) {
+        quickPhrases.removeAll(where: { $0.id == id })
+        storage.saveQuickPhrases(quickPhrases)
+    }
+
+    func updateQuickPhrase(id: String, label: String, content: String) {
+        if let idx = quickPhrases.firstIndex(where: { $0.id == id }) {
+            quickPhrases[idx].label = label
+            quickPhrases[idx].content = content
+            storage.saveQuickPhrases(quickPhrases)
+        }
+    }
+
+    // MARK: - Device Alias
+
+    func renamePairedDevice(id: String, alias: String) {
+        if let idx = pairedDevices.firstIndex(where: { $0.id == id }) {
+            pairedDevices[idx].alias = alias.isEmpty ? nil : alias
+            storage.savePairedDevices(pairedDevices)
+        }
+    }
+
+    // MARK: - App Lifecycle
+
+    func onAppResume() {
+        if lastConnectedIP != nil && connectionStatus == .disconnected {
+            connect(to: lastConnectedIP!)
+        }
+    }
+}

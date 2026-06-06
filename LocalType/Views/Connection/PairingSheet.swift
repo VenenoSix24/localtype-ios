@@ -9,7 +9,7 @@ struct PairingSheet: View {
         VStack(spacing: 20) {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 32))
-                .foregroundStyle(.blue)
+                .foregroundStyle(appState.accentColor.color)
 
             Text("输入配对码")
                 .font(.title3.weight(.semibold))
@@ -24,11 +24,11 @@ struct PairingSheet: View {
                         .frame(width: 40, height: 48)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(index < code.count ? Color.blue.opacity(0.12) : Color(.tertiarySystemFill))
+                                .fill(index < code.count ? appState.accentColor.color.opacity(0.12) : Color(.tertiarySystemFill))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(index == code.count ? Color.blue : Color.clear, lineWidth: 2)
+                                .stroke(index == code.count ? appState.accentColor.color : Color.clear, lineWidth: 2)
                         )
                         .scaleEffect(index < code.count ? 1.05 : 1.0)
                         .animation(.spring(response: 0.25, dampingFraction: 0.6), value: code.count)
@@ -71,7 +71,7 @@ struct PairingSheet: View {
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.blue, in: .rect(cornerRadius: 12))
+                        .background(appState.accentColor.color, in: .rect(cornerRadius: 12))
                         .foregroundStyle(Color.white)
                 }
                 .disabled(code.count < 6)

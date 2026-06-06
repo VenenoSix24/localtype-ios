@@ -1,0 +1,158 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.20392,0.78039,0.34902,1.00000"
+  },
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "fill" : {
+            "solid" : "display-p3:0.27466,0.57080,0.99756,1.00000"
+          },
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "humbleicons_text-aa.png",
+          "name" : "humbleicons_text-aa",
+          "position" : {
+            "scale" : 0.5,
+            "translation-in-points" : [
+              177,
+              -57.50000000000006
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "solid" : "display-p3:0.27466,0.57080,0.99756,1.00000"
+          },
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "uil_message.png",
+          "name" : "uil_message",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 0.4,
+            "translation-in-points" : [
+              174.5999999999999,
+              -42.69999999999993
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "automatic-gradient" : "extended-srgb:0.20392,0.78039,0.34902,1.00000"
+          },
+          "glass" : false,
+          "image-name" : "tabler_message.png",
+          "name" : "tabler_message",
+          "position" : {
+            "scale" : 0.5,
+            "translation-in-points" : [
+              162.79999999999995,
+              -46.49999999999994
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "fluent_phone-16-filled.png",
+          "name" : "fluent_phone-16-filled",
+          "position" : {
+            "scale" : 1.45,
+            "translation-in-points" : [
+              161.75,
+              0.27499999999997726
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.7
+      }
+    },
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "solar_keyboard-linear 2.png",
+          "name" : "solar_keyboard-linear 2",
+          "position" : {
+            "scale" : 1.05,
+            "translation-in-points" : [
+              -117.59999999999997,
+              136.07500000000005
+            ]
+          }
+        },
+        {
+          "glass" : true,
+          "image-name" : "ic_round-wifi 3.png",
+          "name" : "ic_round-wifi 3",
+          "position" : {
+            "scale" : 0.5,
+            "translation-in-points" : [
+              -155.67390458394908,
+              -134.50000000000006
+            ]
+          }
+        },
+        {
+          "hidden" : true,
+          "image-name" : "solar_keyboard-bold 2.png",
+          "name" : "solar_keyboard-bold 2"
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.7
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

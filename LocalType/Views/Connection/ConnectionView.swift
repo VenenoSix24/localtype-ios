@@ -8,16 +8,15 @@ struct ConnectionView: View {
     @State private var fullIP = ""
     @State private var useFullIP = false
     @State private var detectedSubnet: String?
-    @State private var devicesAppeared = false
+    @State private var cardsAppeared = false
 
     var body: some View {
-        @Bindable var state = appState
-
         ZStack {
             ScrollView {
                 VStack(spacing: 16) {
                     statusCard
 
+                    // Paired devices
                     if !appState.pairedDevices.isEmpty {
                         sectionHeader("已配对设备")
                         ForEach(Array(appState.pairedDevices.enumerated()), id: \.element.id) { index, device in
@@ -28,42 +27,19 @@ struct ConnectionView: View {
                                 onTap: { appState.connect(to: device.ip) },
                                 onRemove: { appState.removePairedDevice(id: device.id) }
                             )
-                            .opacity(devicesAppeared ? 1 : 0)
-                            .offset(y: devicesAppeared ? 0 : 20)
+                            .opacity(cardsAppeared ? 1 : 0)
+                            .offset(y: cardsAppeared ? 0 : 20)
                             .animation(
                                 .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.08),
-                                value: devicesAppeared
+                                value: cardsAppeared
                             )
                         }
                     }
 
-                    if appState.isScanning {
-                        scanningIndicator
-                            .transition(.scale.combined(with: .opacity))
-                    } else if !appState.discoveredDevices.isEmpty {
-                        sectionHeader("附近设备")
-                        ForEach(Array(unpairedDevices.enumerated()), id: \.element.id) { index, device in
-                            DeviceCard(
-                                device: device,
-                                isConnected: false,
-                                isPaired: false,
-                                onTap: { appState.connect(to: device.ip) },
-                                onRemove: nil
-                            )
-                            .transition(.asymmetric(
-                                insertion: .scale(scale: 0.9).combined(with: .opacity),
-                                removal: .scale(scale: 0.9).combined(with: .opacity)
-                            ))
-                            .animation(
-                                .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.06),
-                                value: appState.discoveredDevices.count
-                            )
-                        }
-                    }
-
+                    // Connect section
                     sectionHeader("连接电脑")
 
-                    // Quick connect
+                    // Quick connect (subnet)
                     if let subnet = detectedSubnet {
                         Button {
                             useFullIP = false
@@ -72,7 +48,7 @@ struct ConnectionView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "bolt.circle.fill")
                                     .font(.title2)
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(appState.accentColor.color)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("快速连接")
                                         .font(.body.weight(.medium))
@@ -102,7 +78,7 @@ struct ConnectionView: View {
                         HStack(spacing: 12) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.title2)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(appState.accentColor.color)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("输入完整 IP")
                                     .font(.body.weight(.medium))
@@ -121,31 +97,36 @@ struct ConnectionView: View {
                     }
                     .buttonStyle(.plain)
                     .glassEffect(.regular, in: .rect(cornerRadius: 20))
+
+                    // Help tip
+                    if appState.pairedDevices.isEmpty && appState.connectionStatus == .disconnected {
+                        VStack(spacing: 8) {
+                            Image(systemName: "lightbulb")
+                                .font(.title3)
+                                .foregroundStyle(.yellow)
+                            Text("在电脑端打开 LocalType 服务，\n输入 IP 地址即可连接")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
             .navigationTitle("连接")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        appState.startScanning()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .disabled(appState.isScanning)
-                }
-            }
             .onAppear {
                 detectSubnet()
                 withAnimation {
-                    devicesAppeared = true
+                    cardsAppeared = true
                 }
             }
 
             // Pairing overlay
-            if state.showingPairingSheet {
+            if appState.showingPairingSheet {
                 pairingOverlay
             }
         }
@@ -294,7 +275,7 @@ struct ConnectionView: View {
                             .foregroundStyle(.secondary)
                             .monospaced()
                     case .disconnected:
-                        Text("输入电脑端 IP 地址进行连接")
+                        Text("选择设备或输入 IP 连接")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     case .connecting:
@@ -315,7 +296,6 @@ struct ConnectionView: View {
                 case .connected:
                     Button {
                         appState.disconnect()
-                        HapticManager.impact()
                     } label: {
                         Text("断开")
                             .font(.caption.weight(.bold))
@@ -373,24 +353,5 @@ struct ConnectionView: View {
             Spacer()
         }
         .padding(.top, 4)
-    }
-
-    private var scanningIndicator: some View {
-        HStack(spacing: 10) {
-            ProgressView()
-            Text("正在扫描局域网设备...")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
-        .symbolEffect(.pulse.byLayer, options: .repeating)
-    }
-
-    private var unpairedDevices: [DiscoveredDevice] {
-        appState.discoveredDevices.filter { d in
-            !appState.pairedDevices.contains(where: { $0.id == d.id })
-        }
     }
 }

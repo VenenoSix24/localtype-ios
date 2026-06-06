@@ -77,6 +77,16 @@ final class StorageService: @unchecked Sendable {
         set { defaults.set(newValue, forKey: "today_date") }
     }
 
+    var streakDays: Int {
+        get { defaults.integer(forKey: "streak_days") }
+        set { defaults.set(newValue, forKey: "streak_days") }
+    }
+
+    var lastInputDate: String {
+        get { defaults.string(forKey: "last_input_date") ?? "" }
+        set { defaults.set(newValue, forKey: "last_input_date") }
+    }
+
     // MARK: - Injection Method
 
     var injectionMethod: String {
@@ -96,5 +106,15 @@ final class StorageService: @unchecked Sendable {
     var colorScheme: String {
         get { defaults.string(forKey: "color_scheme") ?? "system" }
         set { defaults.set(newValue, forKey: "color_scheme") }
+    }
+
+    var accentColor: String {
+        get { defaults.string(forKey: "accent_color") ?? "blue" }
+        set { defaults.set(newValue, forKey: "accent_color") }
+    }
+
+    var bubbleStyle: String {
+        get { defaults.string(forKey: "bubble_style") ?? "liquidGlass" }
+        set { defaults.set(newValue, forKey: "bubble_style") }
     }
 }

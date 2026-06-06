@@ -36,6 +36,12 @@ final class AppState {
     var totalChars: Int = 0
     var todayChars: Int = 0
     private var todayDate: String = ""
+    var streakDays: Int = 0
+    private var lastInputDate: String = ""
+
+    // MARK: - Achievements
+    var showingAchievement: Bool = false
+    var newAchievement: Milestone?
 
     // MARK: - Device Identity
     let deviceId: String
@@ -57,9 +63,18 @@ final class AppState {
     var colorScheme: String = "system" {
         didSet { storage.colorScheme = colorScheme }
     }
+    var accentColor: ThemeColor = .blue {
+        didSet { storage.accentColor = accentColor.rawValue }
+    }
+    var bubbleStyle: BubbleStyle = .liquidGlass {
+        didSet { storage.bubbleStyle = bubbleStyle.rawValue }
+    }
 
     // MARK: - Pairing
     var showingPairingSheet: Bool = false
+
+    // MARK: - Navigation
+    var selectedTab: Int = 0
 
     // MARK: - Private
     private let storage = StorageService.shared
@@ -85,8 +100,12 @@ final class AppState {
         totalChars = storage.totalChars
         todayChars = storage.todayChars
         todayDate = storage.todayDate
+        streakDays = storage.streakDays
+        lastInputDate = storage.lastInputDate
         injectionMethod = storage.injectionMethod
         colorScheme = storage.colorScheme
+        accentColor = ThemeColor(rawValue: storage.accentColor) ?? .blue
+        bubbleStyle = BubbleStyle(rawValue: storage.bubbleStyle) ?? .liquidGlass
         currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
     }
 
@@ -192,6 +211,7 @@ final class AppState {
                 self.connectionStatus = .error
                 self.ws.disconnect()
                 self.addSystemMessage("连接超时")
+                HapticManager.error()
             }
         }
         self.connectTimer = timer
@@ -212,6 +232,9 @@ final class AppState {
         connectTimer?.cancel()
         connectTimer = nil
         ws.disconnect()
+        if connectionStatus == .connected {
+            HapticManager.warning()
+        }
         connectionStatus = .disconnected
         authStatus = .unauthenticated
         lastConnectedIP = nil
@@ -243,6 +266,8 @@ final class AppState {
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated
             savePairedDevice()
+            HapticManager.success()
+            selectedTab = 1
 
         case "authsuccess":
             connectTimer?.cancel()
@@ -250,6 +275,8 @@ final class AppState {
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated
             savePairedDevice()
+            HapticManager.success()
+            selectedTab = 1
 
         case "authfailed":
             authStatus = .unauthenticated
@@ -257,6 +284,7 @@ final class AppState {
             var tokens = storage.loadTokens()
             tokens.removeValue(forKey: key)
             storage.saveTokens(tokens)
+            HapticManager.error()
             disconnect()
 
         case "unpaired":
@@ -283,6 +311,7 @@ final class AppState {
         ws.send(WebSocketService.verifyPairingMessage(
             deviceId: deviceId, deviceName: deviceName, code: code))
         showingPairingSheet = false
+        HapticManager.impact(.medium)
     }
 
     // MARK: - Paired Devices
@@ -342,6 +371,7 @@ final class AppState {
         }
 
         inputText = ""
+        HapticManager.success()
         addCharCount(text.count)
     }
 
@@ -358,11 +388,64 @@ final class AppState {
     }
 
     private func addCharCount(_ count: Int) {
+        let previousLevel = currentMilestone
         checkToday()
+        updateStreak()
         totalChars += count
         todayChars += count
         storage.totalChars = totalChars
         storage.todayChars = todayChars
+
+        // Check for milestone unlock
+        let newLevel = currentMilestone
+        if newLevel.threshold > previousLevel.threshold {
+            newAchievement = newLevel
+            showingAchievement = true
+            HapticManager.celebrate()
+        }
+    }
+
+    var currentMilestone: Milestone {
+        Milestone.allCases.last { totalChars >= $0.threshold } ?? .newbie
+    }
+
+    var nextMilestone: Milestone? {
+        Milestone.allCases.first { totalChars < $0.threshold }
+    }
+
+    var milestoneProgress: Double {
+        guard let next = nextMilestone else { return 1.0 }
+        let current = currentMilestone
+        if current == next { return 0 }
+        let range = Double(next.threshold - current.threshold)
+        let progress = Double(totalChars - current.threshold) / range
+        return min(max(progress, 0), 1.0)
+    }
+
+    private func updateStreak() {
+        let today = Self.todayKey()
+        if lastInputDate.isEmpty {
+            // First time
+            streakDays = 1
+        } else if lastInputDate == today {
+            // Already counted today
+        } else {
+            // Check if yesterday
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            if let lastDate = formatter.date(from: lastInputDate),
+               let todayDate = formatter.date(from: today) {
+                let days = Calendar.current.dateComponents([.day], from: lastDate, to: todayDate).day ?? 0
+                if days == 1 {
+                    streakDays += 1
+                } else if days > 1 {
+                    streakDays = 1
+                }
+            }
+        }
+        lastInputDate = today
+        storage.streakDays = streakDays
+        storage.lastInputDate = lastInputDate
     }
 
     private static func todayKey() -> String {

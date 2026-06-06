@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MessageBubble: View {
+    @Environment(AppState.self) private var appState
     let message: Message
     @State private var appeared = false
 
@@ -8,9 +9,18 @@ struct MessageBubble: View {
         if message.type == .system {
             systemBubble
         } else {
-            userBubble
+            switch appState.bubbleStyle {
+            case .liquidGlass:
+                liquidGlassBubble
+            case .classic:
+                classicBubble
+            case .minimal:
+                minimalBubble
+            }
         }
     }
+
+    // MARK: - System Bubble
 
     private var systemBubble: some View {
         Text(message.text)
@@ -30,7 +40,9 @@ struct MessageBubble: View {
             }
     }
 
-    private var userBubble: some View {
+    // MARK: - Liquid Glass (default)
+
+    private var liquidGlassBubble: some View {
         HStack(alignment: .bottom, spacing: 0) {
             Spacer(minLength: 48)
 
@@ -39,16 +51,10 @@ struct MessageBubble: View {
                     .font(.body)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 9)
-                    .background(Color.blue.opacity(0.15), in: .rect(cornerRadius: 18))
+                    .background(appState.accentColor.color.opacity(0.15), in: .rect(cornerRadius: 18))
                     .glassEffect(.regular, in: .rect(cornerRadius: 18))
 
-                HStack(spacing: 3) {
-                    Text(timeString)
-                        .font(.caption2)
-                        .foregroundStyle(.quaternary)
-                    statusIcon
-                }
-                .padding(.trailing, 4)
+                metadataRow(foreground: .quaternary)
             }
         }
         .padding(.vertical, 1)
@@ -60,6 +66,78 @@ struct MessageBubble: View {
             }
         }
     }
+
+    // MARK: - Classic (iMessage style)
+
+    private var classicBubble: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Spacer(minLength: 48)
+
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(message.text)
+                    .font(.body)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(appState.accentColor.color, in: .rect(cornerRadius: 18))
+
+                metadataRow(foreground: .tertiary)
+            }
+        }
+        .padding(.vertical, 1)
+        .opacity(appeared ? 1 : 0)
+        .offset(x: appeared ? 0 : 30)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                appeared = true
+            }
+        }
+    }
+
+    // MARK: - Minimal
+
+    private var minimalBubble: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(message.text)
+                    .font(.body)
+                    .foregroundStyle(appState.accentColor.color)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 4) {
+                    Text(timeString)
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
+                    statusIcon
+                }
+            }
+
+            Spacer(minLength: 48)
+        }
+        .padding(.vertical, 2)
+        .padding(.horizontal, 4)
+        .opacity(appeared ? 1 : 0)
+        .offset(x: appeared ? 0 : -20)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                appeared = true
+            }
+        }
+    }
+
+    // MARK: - Metadata Row
+
+    private func metadataRow<S: ShapeStyle>(foreground: S) -> some View {
+        HStack(spacing: 3) {
+            Text(timeString)
+                .font(.caption2)
+                .foregroundStyle(foreground)
+            statusIcon
+        }
+        .padding(.trailing, 4)
+    }
+
+    // MARK: - Status Icon
 
     @ViewBuilder
     private var statusIcon: some View {
@@ -82,6 +160,8 @@ struct MessageBubble: View {
                 .foregroundStyle(.red)
         }
     }
+
+    // MARK: - Helpers
 
     private var timeString: String {
         let f = DateFormatter()

@@ -46,7 +46,7 @@ struct DeviceManagementView: View {
                         if device.alias != nil {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.caption)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(appState.accentColor.color)
                         }
                     }
                     .contentShape(Rectangle())

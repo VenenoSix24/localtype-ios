@@ -18,7 +18,7 @@ struct SettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "iphone")
                         .font(.title3)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(appState.accentColor.color)
                         .frame(width: 32)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("设备名称")
@@ -44,7 +44,7 @@ struct SettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "desktopcomputer")
                             .font(.title3)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(appState.accentColor.color)
                             .frame(width: 32)
                         Text("设备管理")
                         Spacer()
@@ -61,7 +61,7 @@ struct SettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "text.bubble")
                             .font(.title3)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(appState.accentColor.color)
                             .frame(width: 32)
                         Text("快捷短语")
                         Spacer()
@@ -82,19 +82,89 @@ struct SettingsView: View {
                         HStack(spacing: 12) {
                             Image(systemName: theme.2)
                                 .font(.title3)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(appState.accentColor.color)
                                 .frame(width: 32)
                             Text(theme.1)
                                 .foregroundStyle(.primary)
                             Spacer()
                             if appState.colorScheme == theme.0 {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(appState.accentColor.color)
                             }
                         }
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                }
+
+                // Theme Color
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("主题色")
+                        .font(.body)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 14) {
+                            ForEach(ThemeColor.allCases) { themeColor in
+                                Button {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        appState.accentColor = themeColor
+                                    }
+                                    HapticManager.selection()
+                                } label: {
+                                    ZStack {
+                                        Circle()
+                                            .fill(themeColor.color.gradient)
+                                            .frame(width: 36, height: 36)
+
+                                        if appState.accentColor == themeColor {
+                                            Circle()
+                                                .strokeBorder(.white, lineWidth: 2.5)
+                                                .frame(width: 36, height: 36)
+                                            Image(systemName: "checkmark")
+                                                .font(.caption2.bold())
+                                                .foregroundStyle(.white)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
+                // Bubble Style
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("聊天气泡")
+                        .font(.body)
+                    ForEach(BubbleStyle.allCases) { style in
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                appState.bubbleStyle = style
+                            }
+                            HapticManager.selection()
+                        } label: {
+                            HStack(spacing: 12) {
+                                bubblePreview(for: style)
+                                    .frame(width: 44, height: 28)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(style.name)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text(style.description)
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Spacer()
+                                if appState.bubbleStyle == style {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(appState.accentColor.color)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
 
@@ -107,14 +177,14 @@ struct SettingsView: View {
                         HStack(spacing: 12) {
                             Image(systemName: method.2)
                                 .font(.title3)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(appState.accentColor.color)
                                 .frame(width: 32)
                             Text(method.1)
                                 .foregroundStyle(.primary)
                             Spacer()
                             if appState.injectionMethod == method.0 {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(appState.accentColor.color)
                             }
                         }
                         .contentShape(Rectangle())
@@ -131,7 +201,7 @@ struct SettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.down.circle")
                             .font(.title3)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(appState.accentColor.color)
                             .frame(width: 32)
                         Text("检查更新")
                         Spacer()
@@ -153,7 +223,7 @@ struct SettingsView: View {
                         HStack {
                             Text("新版本 v\(info.latestVersion)")
                                 .font(.body.weight(.medium))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(appState.accentColor.color)
                             Spacer()
                             Button("跳过") { appState.skipCurrentUpdate() }
                                 .font(.caption)
@@ -193,6 +263,24 @@ struct SettingsView: View {
             }
         } message: {
             Text("当前名称：\(appState.deviceName)")
+        }
+    }
+
+    // MARK: - Bubble Preview
+
+    @ViewBuilder
+    private func bubblePreview(for style: BubbleStyle) -> some View {
+        switch style {
+        case .liquidGlass:
+            RoundedRectangle(cornerRadius: 8)
+                .fill(appState.accentColor.color.opacity(0.15))
+                .glassEffect(.regular, in: .rect(cornerRadius: 8))
+        case .classic:
+            RoundedRectangle(cornerRadius: 8)
+                .fill(appState.accentColor.color)
+        case .minimal:
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(appState.accentColor.color, lineWidth: 1.5)
         }
     }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct DeviceCard: View {
+    @Environment(AppState.self) private var appState
     let device: DiscoveredDevice
     let isConnected: Bool
     let isPaired: Bool
@@ -55,7 +56,7 @@ struct DeviceCard: View {
                 } else if isPaired {
                     Image(systemName: "wifi")
                         .font(.title3)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(appState.accentColor.color)
                 }
             }
             .padding(14)

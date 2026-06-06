@@ -38,7 +38,7 @@ struct InputBar: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.white)
                             .frame(width: 28, height: 28)
-                            .background(Color.blue, in: .circle)
+                            .background(appState.accentColor.color, in: .circle)
                     }
                 }
                 .frame(width: 44, height: 40)

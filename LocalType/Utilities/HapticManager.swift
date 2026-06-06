@@ -12,4 +12,23 @@ enum HapticManager {
     static func selection() {
         UISelectionFeedbackGenerator().selectionChanged()
     }
+
+    static func success() {
+        notification(.success)
+    }
+
+    static func warning() {
+        notification(.warning)
+    }
+
+    static func error() {
+        notification(.error)
+    }
+
+    static func celebrate() {
+        impact(.heavy)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            impact(.medium)
+        }
+    }
 }

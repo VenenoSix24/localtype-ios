@@ -19,7 +19,7 @@ struct QuickPhrasePanel: View {
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(appState.quickPhrases) { phrase in
+                    ForEach(Array(appState.quickPhrases.enumerated()), id: \.element.id) { index, phrase in
                         Button(action: {
                             appState.inputText += phrase.content
                             HapticManager.selection()
@@ -40,6 +40,11 @@ struct QuickPhrasePanel: View {
                             .padding(.vertical, 8)
                         }
                         .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                        .transition(.scale.combined(with: .opacity))
+                        .animation(
+                            .spring(response: 0.35, dampingFraction: 0.8).delay(Double(index) * 0.05),
+                            value: isPresented
+                        )
                     }
                 }
                 .padding(.horizontal, 16)

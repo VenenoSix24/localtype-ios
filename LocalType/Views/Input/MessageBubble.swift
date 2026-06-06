@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MessageBubble: View {
     let message: Message
+    @State private var appeared = false
 
     var body: some View {
         if message.type == .system {
@@ -20,6 +21,13 @@ struct MessageBubble: View {
             .glassEffect(.regular, in: .capsule)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
+            .opacity(appeared ? 1 : 0)
+            .scaleEffect(appeared ? 1 : 0.8, anchor: .center)
+            .onAppear {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    appeared = true
+                }
+            }
     }
 
     private var userBubble: some View {
@@ -44,6 +52,13 @@ struct MessageBubble: View {
             }
         }
         .padding(.vertical, 1)
+        .opacity(appeared ? 1 : 0)
+        .offset(x: appeared ? 0 : 30)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                appeared = true
+            }
+        }
     }
 
     @ViewBuilder

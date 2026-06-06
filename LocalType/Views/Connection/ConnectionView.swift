@@ -8,6 +8,7 @@ struct ConnectionView: View {
     @State private var fullIP = ""
     @State private var useFullIP = false
     @State private var detectedSubnet: String?
+    @State private var devicesAppeared = false
 
     var body: some View {
         @Bindable var state = appState
@@ -19,7 +20,7 @@ struct ConnectionView: View {
 
                     if !appState.pairedDevices.isEmpty {
                         sectionHeader("已配对设备")
-                        ForEach(appState.pairedDevices) { device in
+                        ForEach(Array(appState.pairedDevices.enumerated()), id: \.element.id) { index, device in
                             DeviceCard(
                                 device: device,
                                 isConnected: appState.connectionStatus == .connected && appState.remoteServerId == device.id,
@@ -27,20 +28,35 @@ struct ConnectionView: View {
                                 onTap: { appState.connect(to: device.ip) },
                                 onRemove: { appState.removePairedDevice(id: device.id) }
                             )
+                            .opacity(devicesAppeared ? 1 : 0)
+                            .offset(y: devicesAppeared ? 0 : 20)
+                            .animation(
+                                .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.08),
+                                value: devicesAppeared
+                            )
                         }
                     }
 
                     if appState.isScanning {
                         scanningIndicator
+                            .transition(.scale.combined(with: .opacity))
                     } else if !appState.discoveredDevices.isEmpty {
                         sectionHeader("附近设备")
-                        ForEach(unpairedDevices) { device in
+                        ForEach(Array(unpairedDevices.enumerated()), id: \.element.id) { index, device in
                             DeviceCard(
                                 device: device,
                                 isConnected: false,
                                 isPaired: false,
                                 onTap: { appState.connect(to: device.ip) },
                                 onRemove: nil
+                            )
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.9).combined(with: .opacity),
+                                removal: .scale(scale: 0.9).combined(with: .opacity)
+                            ))
+                            .animation(
+                                .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.06),
+                                value: appState.discoveredDevices.count
                             )
                         }
                     }
@@ -123,6 +139,9 @@ struct ConnectionView: View {
             }
             .onAppear {
                 detectSubnet()
+                withAnimation {
+                    devicesAppeared = true
+                }
             }
 
             // Pairing overlay
@@ -240,7 +259,10 @@ struct ConnectionView: View {
 
             PairingSheet()
         }
-        .transition(.opacity)
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.9)),
+            removal: .opacity.combined(with: .scale(scale: 0.95))
+        ))
         .zIndex(1)
     }
 
@@ -257,11 +279,13 @@ struct ConnectionView: View {
                         .fill(statusColor)
                         .frame(width: 10, height: 10)
                         .shadow(color: statusColor.opacity(0.5), radius: 4)
+                        .animation(.easeInOut(duration: 0.4), value: appState.connectionStatus)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(statusText)
                         .font(.headline)
+                        .contentTransition(.numericText())
 
                     switch appState.connectionStatus {
                     case .connected:
@@ -283,6 +307,7 @@ struct ConnectionView: View {
                             .foregroundStyle(.red)
                     }
                 }
+                .animation(.easeInOut(duration: 0.3), value: appState.connectionStatus)
 
                 Spacer()
 
@@ -299,6 +324,7 @@ struct ConnectionView: View {
                             .background(Color(.tertiarySystemFill), in: .capsule)
                             .foregroundStyle(.red)
                     }
+                    .transition(.scale.combined(with: .opacity))
                 case .connecting:
                     Button {
                         appState.cancelConnect()
@@ -310,10 +336,12 @@ struct ConnectionView: View {
                             .background(Color(.tertiarySystemFill), in: .capsule)
                             .foregroundStyle(.primary)
                     }
+                    .transition(.scale.combined(with: .opacity))
                 default:
                     EmptyView()
                 }
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: appState.connectionStatus)
         }
     }
 
@@ -357,6 +385,7 @@ struct ConnectionView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
         .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        .symbolEffect(.pulse.byLayer, options: .repeating)
     }
 
     private var unpairedDevices: [DiscoveredDevice] {

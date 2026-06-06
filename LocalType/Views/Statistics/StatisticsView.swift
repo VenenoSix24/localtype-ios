@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StatisticsView: View {
     @Environment(AppState.self) private var appState
+    @State private var cardsAppeared = false
 
     private var level: (String, String, Int) {
         let chars = appState.totalChars
@@ -49,7 +50,7 @@ struct StatisticsView: View {
                                 .stroke(Color.blue, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                                 .frame(width: 64, height: 64)
                                 .rotationEffect(.degrees(-90))
-                                .animation(.easeInOut(duration: 0.6), value: progress)
+                                .animation(.easeInOut(duration: 0.8), value: progress)
                             Image(systemName: level.1)
                                 .font(.system(size: 22))
                                 .foregroundStyle(.blue)
@@ -72,6 +73,9 @@ struct StatisticsView: View {
                         }
                     }
                 }
+                .opacity(cardsAppeared ? 1 : 0)
+                .offset(y: cardsAppeared ? 0 : 20)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0), value: cardsAppeared)
 
                 // Total + Today row
                 HStack(spacing: 12) {
@@ -90,6 +94,9 @@ struct StatisticsView: View {
                         unit: "字符"
                     )
                 }
+                .opacity(cardsAppeared ? 1 : 0)
+                .offset(y: cardsAppeared ? 0 : 20)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.08), value: cardsAppeared)
 
                 // Daily avg + estimated reading
                 HStack(spacing: 12) {
@@ -108,6 +115,9 @@ struct StatisticsView: View {
                         unit: "页书籍"
                     )
                 }
+                .opacity(cardsAppeared ? 1 : 0)
+                .offset(y: cardsAppeared ? 0 : 20)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.16), value: cardsAppeared)
 
                 // Fun facts
                 GlassCardSmall {
@@ -126,6 +136,9 @@ struct StatisticsView: View {
                         }
                     }
                 }
+                .opacity(cardsAppeared ? 1 : 0)
+                .offset(y: cardsAppeared ? 0 : 20)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.24), value: cardsAppeared)
 
                 // Privacy
                 HStack(spacing: 6) {
@@ -137,12 +150,19 @@ struct StatisticsView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.top, 4)
+                .opacity(cardsAppeared ? 1 : 0)
+                .animation(.easeInOut(duration: 0.4).delay(0.32), value: cardsAppeared)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 20)
         }
         .navigationTitle("统计")
+        .onAppear {
+            withAnimation {
+                cardsAppeared = true
+            }
+        }
     }
 
     private func formatNumber(_ n: Int) -> String {

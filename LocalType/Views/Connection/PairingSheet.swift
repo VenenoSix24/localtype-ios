@@ -30,6 +30,8 @@ struct PairingSheet: View {
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(index == code.count ? Color.blue : Color.clear, lineWidth: 2)
                         )
+                        .scaleEffect(index < code.count ? 1.05 : 1.0)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.6), value: code.count)
                 }
             }
             .overlay {

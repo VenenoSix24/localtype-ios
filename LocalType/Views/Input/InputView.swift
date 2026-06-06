@@ -3,6 +3,7 @@ import SwiftUI
 struct InputView: View {
     @Environment(AppState.self) private var appState
     @State private var showQuickPhrases = false
+    @State private var placeholderAppeared = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,6 +30,7 @@ struct InputView: View {
                             }
                         }
                     }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
                 // Quick phrases
@@ -42,11 +44,12 @@ struct InputView: View {
                     .padding(.horizontal, 8)
                     .padding(.bottom, 4)
                     .padding(.top, 2)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .navigationTitle("输入")
-        .animation(.spring(response: 0.3), value: showQuickPhrases)
-        .animation(.spring(response: 0.3), value: appState.connectionStatus)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showQuickPhrases)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: appState.connectionStatus)
     }
 
     private var disconnectedPlaceholder: some View {
@@ -55,6 +58,7 @@ struct InputView: View {
             Image(systemName: "keyboard")
                 .font(.system(size: 48, weight: .light))
                 .foregroundStyle(.quaternary)
+                .symbolEffect(.pulse.byLayer, options: .repeating)
             Text("请先连接电脑")
                 .font(.title3.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -62,6 +66,16 @@ struct InputView: View {
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
             Spacer()
+        }
+        .opacity(placeholderAppeared ? 1 : 0)
+        .scaleEffect(placeholderAppeared ? 1 : 0.9)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                placeholderAppeared = true
+            }
+        }
+        .onDisappear {
+            placeholderAppeared = false
         }
     }
 }

@@ -294,6 +294,15 @@ final class AppState {
             if remoteServerId.isEmpty, let tried = triedServerId {
                 remoteServerId = tried
             }
+            // Read server name from response
+            if let name = json["name"] as? String, !name.isEmpty {
+                remoteServerName = name
+            }
+            // Restore device name from paired devices if still generic
+            if remoteServerName == "桌面端", !remoteServerId.isEmpty,
+               let matched = pairedDevices.first(where: { $0.id == remoteServerId }) {
+                remoteServerName = matched.name
+            }
             if let token = json["token"] as? String {
                 let key = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
                 var tokens = storage.loadTokens()
@@ -313,6 +322,15 @@ final class AppState {
             // Recover serverId from the token we tried (IP may have changed)
             if remoteServerId.isEmpty, let tried = triedServerId {
                 remoteServerId = tried
+            }
+            // Read server name from response
+            if let name = json["name"] as? String, !name.isEmpty {
+                remoteServerName = name
+            }
+            // Restore device name from paired devices if still generic
+            if remoteServerName == "桌面端", !remoteServerId.isEmpty,
+               let matched = pairedDevices.first(where: { $0.id == remoteServerId }) {
+                remoteServerName = matched.name
             }
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated

@@ -14,12 +14,12 @@ struct DeviceCard: View {
                 // Icon
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isConnected ? Color.green.opacity(0.12) : Color(.tertiarySystemFill))
+                        .fill(isConnected ? appState.accentColor.color.opacity(0.12) : Color(.tertiarySystemFill))
                         .frame(width: 44, height: 44)
 
                     Image(systemName: iconForOS)
                         .font(.system(size: 18))
-                        .foregroundStyle(isConnected ? .green : .secondary)
+                        .foregroundStyle(isConnected ? appState.accentColor.color : .secondary)
                 }
 
                 // Info
@@ -52,7 +52,7 @@ struct DeviceCard: View {
                 if isConnected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(appState.accentColor.color)
                 } else if isPaired {
                     Image(systemName: "wifi")
                         .font(.title3)

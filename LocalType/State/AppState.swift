@@ -153,7 +153,15 @@ final class AppState {
         ws.onConnected = { [weak self] in
             guard let self else { return }
             self.connectionStatus = .connected
-            self.addSystemMessage("已连接到 \(self.remoteServerName)")
+            let cleanName: String
+            if let range = self.remoteServerName.range(of: " (") {
+                cleanName = String(self.remoteServerName[..<range.lowerBound])
+            } else if let range = self.remoteServerName.range(of: "(") {
+                cleanName = String(self.remoteServerName[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+            } else {
+                cleanName = self.remoteServerName
+            }
+            self.addSystemMessage("已连接到 \(cleanName)")
             let tokens = self.storage.loadTokens()
             // Find token: by serverId → by IP → by any paired device (IP may have changed)
             let token: String?
@@ -216,7 +224,7 @@ final class AppState {
             remoteServerOS = d.os ?? ""
         } else {
             // New IP — serverId unknown, will be set after auth
-            remoteServerName = "桌面端 (\(ip))"
+            remoteServerName = "桌面端"
             remoteServerId = ""
         }
 
@@ -356,9 +364,17 @@ final class AppState {
     private func savePairedDevice() {
         guard !remoteServerIP.isEmpty else { return }
         let deviceId = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
+        let cleanName: String
+        if let range = remoteServerName.range(of: " (") {
+            cleanName = String(remoteServerName[..<range.lowerBound])
+        } else if let range = remoteServerName.range(of: "(") {
+            cleanName = String(remoteServerName[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+        } else {
+            cleanName = remoteServerName
+        }
         let device = DiscoveredDevice(
             id: deviceId,
-            name: remoteServerName,
+            name: cleanName,
             ip: remoteServerIP,
             os: remoteServerOS,
             discoveredAt: .now

@@ -9,5 +9,14 @@ struct DiscoveredDevice: Identifiable, Codable, Equatable, Hashable {
     var discoveredAt: Date
     var isOnline: Bool = true
 
-    var displayName: String { alias ?? name }
+    var displayName: String {
+        let base = alias ?? name
+        if let range = base.range(of: " (") {
+            return String(base[..<range.lowerBound])
+        }
+        if let range = base.range(of: "(") {
+            return String(base[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+        }
+        return base
+    }
 }

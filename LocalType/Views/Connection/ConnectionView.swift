@@ -8,12 +8,20 @@ struct ConnectionView: View {
     @State private var fullIP = ""
     @State private var useFullIP = false
     @State private var detectedSubnet: String?
+    @State private var localIP: String?
     @State private var cardsAppeared = false
+    @State private var showConnecting = false
+
+    private var displayStatus: ConnectionStatus {
+        if showConnecting { return .connecting }
+        return appState.connectionStatus
+    }
 
     var body: some View {
         ZStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    connectionHeroCard
                     statusCard
 
                     // Paired devices
@@ -24,7 +32,7 @@ struct ConnectionView: View {
                                 device: device,
                                 isConnected: appState.connectionStatus == .connected && appState.remoteServerId == device.id,
                                 isPaired: true,
-                                onTap: { appState.connect(to: device.ip) },
+                                onTap: { connectWithDelay(device.ip) },
                                 onRemove: { appState.removePairedDevice(id: device.id) }
                             )
                             .opacity(cardsAppeared ? 1 : 0)
@@ -40,7 +48,7 @@ struct ConnectionView: View {
                     sectionHeader("连接电脑")
 
                     // Quick connect (subnet)
-                    if let subnet = detectedSubnet {
+                    if detectedSubnet != nil {
                         Button {
                             useFullIP = false
                             showingManualConnect = true
@@ -53,10 +61,9 @@ struct ConnectionView: View {
                                     Text("快速连接")
                                         .font(.body.weight(.medium))
                                         .foregroundStyle(.primary)
-                                    Text("输入 \(subnet)X 的最后一位数字")
+                                    Text("输入 #编号 即可连接")
                                         .font(.caption)
                                         .foregroundStyle(.tertiary)
-                                        .monospaced()
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -70,48 +77,32 @@ struct ConnectionView: View {
                         .glassEffect(.regular, in: .rect(cornerRadius: 20))
                     }
 
-                    // Full IP connect
-                    Button {
-                        useFullIP = true
-                        showingManualConnect = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(appState.accentColor.color)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("输入完整 IP")
-                                    .font(.body.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text("输入电脑端完整 IP 地址")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.secondary.opacity(0.4))
-                        }
-                        .padding(14)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 20))
-
                     // Help tip
                     if appState.pairedDevices.isEmpty && appState.connectionStatus == .disconnected {
                         VStack(spacing: 8) {
                             Image(systemName: "lightbulb")
                                 .font(.title3)
                                 .foregroundStyle(.yellow)
-                            Text("在电脑端打开 LocalType 服务，\n输入 IP 地址即可连接")
+                            Text("在电脑端打开 LocalType 服务，\n输入编号即可连接")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
+                        .padding(.vertical, 12)
                     }
+
+                    // Full IP fallback
+                    Button {
+                        useFullIP = true
+                        showingManualConnect = true
+                    } label: {
+                        Text("没有找到设备？试试用完整 IP 地址连接")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -136,7 +127,7 @@ struct ConnectionView: View {
                     .keyboardType(.decimalPad)
                     .monospaced()
             } else if detectedSubnet != nil {
-                TextField("最后一位数字", text: $lastOctet)
+                TextField("编号（如 101）", text: $lastOctet)
                     .keyboardType(.numberPad)
                     .monospaced()
             }
@@ -162,7 +153,20 @@ struct ConnectionView: View {
             if useFullIP || detectedSubnet == nil {
                 Text("输入电脑端的完整 IP 地址")
             } else if detectedSubnet != nil {
-                Text("输入最后一位数字即可连接")
+                Text("输入电脑端显示的 #编号")
+            }
+        }
+    }
+
+    // MARK: - Connect with Animation Delay
+
+    private func connectWithDelay(_ ip: String) {
+        guard !showConnecting, appState.connectionStatus != .connected else { return }
+        showConnecting = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            appState.connect(to: ip)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                showConnecting = false
             }
         }
     }
@@ -212,10 +216,13 @@ struct ConnectionView: View {
 
         if let wifi = candidates.first(where: { $0.name == "en0" }) {
             detectedSubnet = wifi.subnet
+            localIP = wifi.ip
         } else if let en = candidates.first(where: { $0.name.hasPrefix("en") }) {
             detectedSubnet = en.subnet
+            localIP = en.ip
         } else if let best = candidates.first {
             detectedSubnet = best.subnet
+            localIP = best.ip
         }
     }
 
@@ -247,6 +254,143 @@ struct ConnectionView: View {
         .zIndex(1)
     }
 
+    // MARK: - Connection Hero Card
+
+    private var connectionHeroCard: some View {
+        GlassCard {
+            VStack(spacing: 16) {
+                // Device icons + line
+                HStack(spacing: 0) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "iphone.gen3")
+                            .font(.system(size: 28))
+                            .foregroundStyle(appState.accentColor.color)
+                        Text("本机")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Text(displayStatus == .connected ? (localIP ?? " ") : " ")
+                            .font(.caption2)
+                            .foregroundStyle(.quaternary)
+                            .monospaced()
+                            .lineLimit(1)
+                            .contentTransition(.opacity)
+                            .animation(.easeInOut(duration: 0.4), value: displayStatus)
+                    }
+                    .frame(width: 100)
+
+                    connectionLine
+                        .frame(height: 24)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 10)
+
+                    VStack(spacing: 4) {
+                        ZStack {
+                            Image(systemName: remoteDeviceIcon)
+                                .font(.system(size: 28))
+                                .foregroundStyle(Color(.tertiaryLabel))
+                                .opacity(displayStatus == .connected ? 0 : 1)
+                            Image(systemName: remoteDeviceIcon)
+                                .font(.system(size: 28))
+                                .foregroundStyle(appState.accentColor.color)
+                                .opacity(displayStatus == .connected ? 1 : 0)
+                        }
+                        .animation(.easeInOut(duration: 0.4), value: displayStatus)
+                        Text(remoteDeviceLabel)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .contentTransition(.opacity)
+                            .animation(.easeInOut(duration: 0.4), value: displayStatus)
+                        Text(displayStatus == .connected && !appState.remoteServerIP.isEmpty ? appState.remoteServerIP : " ")
+                            .font(.caption2)
+                            .foregroundStyle(.quaternary)
+                            .monospaced()
+                            .lineLimit(1)
+                            .contentTransition(.opacity)
+                            .animation(.easeInOut(duration: 0.4), value: displayStatus)
+                    }
+                    .frame(width: 100)
+                }
+
+                // Status message
+                Text(heroStatusMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(heroStatusColor)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.4), value: displayStatus)
+            }
+        }
+        .opacity(cardsAppeared ? 1 : 0)
+        .scaleEffect(cardsAppeared ? 1 : 0.97)
+        .animation(.spring(response: 0.7, dampingFraction: 0.78), value: cardsAppeared)
+    }
+
+    private var connectionLine: some View {
+        ZStack {
+            // Dashed line (disconnected / error)
+            HStack(spacing: 5) {
+                ForEach(0..<8, id: \.self) { _ in
+                    Capsule()
+                        .fill(Color(.tertiaryLabel).opacity(0.4))
+                        .frame(width: 10, height: 2.5)
+                }
+            }
+            .opacity(displayStatus == .disconnected || displayStatus == .error ? 1 : 0)
+
+            // Solid bar (connecting / connected)
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            appState.accentColor.color.opacity(displayStatus == .connected ? 0.5 : 0.25),
+                            appState.accentColor.color.opacity(displayStatus == .connected ? 0.9 : 0.45),
+                            appState.accentColor.color.opacity(displayStatus == .connected ? 0.5 : 0.25)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 3)
+                .shadow(color: appState.accentColor.color.opacity(displayStatus == .connected ? 0.4 : 0.15), radius: 4)
+                .opacity(displayStatus == .connecting || displayStatus == .connected ? 1 : 0)
+        }
+        .animation(.easeInOut(duration: 0.4), value: displayStatus)
+    }
+
+    private var remoteDeviceIcon: String {
+        switch appState.remoteServerOS {
+        case "macos": return "desktopcomputer"
+        case "windows": return "pc"
+        case "linux": return "terminal"
+        default: return "display"
+        }
+    }
+
+    private var remoteDeviceLabel: String {
+        switch displayStatus {
+        case .connected: return cleanServerName
+        default: return "电脑"
+        }
+    }
+
+    private var heroStatusMessage: String {
+        switch displayStatus {
+        case .disconnected: return "准备就绪，输入编号开始连接"
+        case .connecting: return "正在连接..."
+        case .connected: return "已连接 \(cleanServerName)"
+        case .error: return "连接失败，请检查电脑端是否在线"
+        }
+    }
+
+    private var heroStatusColor: Color {
+        switch displayStatus {
+        case .disconnected: return .secondary
+        case .connecting: return appState.accentColor.color
+        case .connected: return appState.accentColor.color
+        case .error: return .red
+        }
+    }
+
     // MARK: - Status Card
 
     private var statusCard: some View {
@@ -260,7 +404,7 @@ struct ConnectionView: View {
                         .fill(statusColor)
                         .frame(width: 10, height: 10)
                         .shadow(color: statusColor.opacity(0.5), radius: 4)
-                        .animation(.easeInOut(duration: 0.4), value: appState.connectionStatus)
+                        .animation(.easeInOut(duration: 0.4), value: displayStatus)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -268,9 +412,9 @@ struct ConnectionView: View {
                         .font(.headline)
                         .contentTransition(.numericText())
 
-                    switch appState.connectionStatus {
+                    switch displayStatus {
                     case .connected:
-                        Text("\(appState.remoteServerName) · \(appState.remoteServerIP)")
+                        Text("\(cleanServerName) · \(appState.remoteServerIP)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospaced()
@@ -279,28 +423,28 @@ struct ConnectionView: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     case .connecting:
-                        Text("正在连接 \(appState.remoteServerIP)...")
+                        Text("正在连接...")
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(appState.accentColor.color)
                     case .error:
                         Text("电脑端离线或地址错误")
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: appState.connectionStatus)
+                .animation(.easeInOut(duration: 0.3), value: displayStatus)
 
                 Spacer()
 
-                switch appState.connectionStatus {
+                switch displayStatus {
                 case .connected:
                     Button {
                         appState.disconnect()
                     } label: {
                         Text("断开")
-                            .font(.caption.weight(.bold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 9)
                             .background(Color(.tertiarySystemFill), in: .capsule)
                             .foregroundStyle(.red)
                     }
@@ -321,26 +465,37 @@ struct ConnectionView: View {
                     EmptyView()
                 }
             }
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: appState.connectionStatus)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: displayStatus)
         }
     }
 
     private var statusColor: Color {
-        switch appState.connectionStatus {
-        case .connected: return .green
-        case .connecting: return .orange
+        switch displayStatus {
+        case .connected: return appState.accentColor.color
+        case .connecting: return appState.accentColor.color
         case .error: return .red
         case .disconnected: return .gray
         }
     }
 
     private var statusText: String {
-        switch appState.connectionStatus {
+        switch displayStatus {
         case .connected: return "已连接"
         case .connecting: return "连接中"
         case .error: return "连接失败"
         case .disconnected: return "未连接"
         }
+    }
+
+    private var cleanServerName: String {
+        let name = appState.remoteServerName
+        if let range = name.range(of: " (") {
+            return String(name[..<range.lowerBound])
+        }
+        if let range = name.range(of: "(") {
+            return String(name[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+        }
+        return name
     }
 
     // MARK: - Helpers

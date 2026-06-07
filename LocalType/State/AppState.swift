@@ -38,6 +38,7 @@ final class AppState {
     private var todayDate: String = ""
     var streakDays: Int = 0
     private var lastInputDate: String = ""
+    var isProbing: Bool = false
 
     // MARK: - Achievements
     var showingAchievement: Bool = false
@@ -100,6 +101,10 @@ final class AppState {
 
     private func loadState() {
         pairedDevices = storage.loadPairedDevices()
+        // Default to offline until probed
+        for idx in pairedDevices.indices {
+            pairedDevices[idx].isOnline = false
+        }
         quickPhrases = storage.loadQuickPhrases()
         totalChars = storage.totalChars
         todayChars = storage.todayChars
@@ -145,6 +150,62 @@ final class AppState {
     func stopScanning() {
         discovery.stopScanning()
         isScanning = false
+    }
+
+    // MARK: - Device Probe (TCP reachability check)
+
+    func probeAllDevices() {
+        guard !isProbing else { return }
+        isProbing = true
+        let startTime = Date()
+        let group = DispatchGroup()
+        for device in pairedDevices {
+            group.enter()
+            probeDevice(ip: device.ip) { online in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let idx = self.pairedDevices.firstIndex(where: { $0.id == device.id }) {
+                        self.pairedDevices[idx].isOnline = online
+                    }
+                    group.leave()
+                }
+            }
+        }
+        group.notify(queue: .main) { [weak self] in
+            self?.storage.savePairedDevices(self?.pairedDevices ?? [])
+            let elapsed = Date().timeIntervalSince(startTime)
+            let remaining = max(0, 3.0 - elapsed)
+            DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
+                self?.isProbing = false
+            }
+        }
+    }
+
+    private func probeDevice(ip: String, completion: @escaping @Sendable (Bool) -> Void) {
+        guard let url = URL(string: "https://\(ip):8765") else {
+            completion(false)
+            return
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 2
+        let session = URLSession(configuration: config, delegate: InsecureDelegate(), delegateQueue: nil)
+        let task = session.dataTask(with: url) { _, _, error in
+            // Any response (even error) means the port is open
+            completion(error == nil || (error as? URLError)?.code != .cannotConnectToHost)
+        }
+        task.resume()
+    }
+
+    // Allow self-signed certificates for probe
+    private class InsecureDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
+        func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
+                        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+            if let trust = challenge.protectionSpace.serverTrust {
+                completionHandler(.useCredential, URLCredential(trust: trust))
+            } else {
+                completionHandler(.performDefaultHandling, nil)
+            }
+        }
     }
 
     // MARK: - WebSocket
@@ -201,6 +262,10 @@ final class AppState {
 
         ws.onError = { [weak self] _ in
             self?.connectionStatus = .error
+            // Mark device as offline
+            if let self, let idx = self.pairedDevices.firstIndex(where: { $0.ip == self.remoteServerIP }) {
+                self.pairedDevices[idx].isOnline = false
+            }
         }
     }
 
@@ -241,6 +306,10 @@ final class AppState {
             guard let self, self.connectionStatus == .connecting else { return }
             self.connectionStatus = .error
             self.ws.disconnect()
+            // Mark device as offline
+            if let idx = self.pairedDevices.firstIndex(where: { $0.ip == ip }) {
+                self.pairedDevices[idx].isOnline = false
+            }
             self.addSystemMessage("连接失败，请检查电脑端是否在线或 IP 地址是否正确")
             HapticManager.error()
         }
@@ -312,6 +381,10 @@ final class AppState {
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated
             savePairedDevice()
+            // Mark connected device as online
+            if let idx = pairedDevices.firstIndex(where: { $0.id == remoteServerId || $0.ip == remoteServerIP }) {
+                pairedDevices[idx].isOnline = true
+            }
             triedServerId = nil
             HapticManager.success()
             if autoJumpToInput { selectedTab = 1 }
@@ -335,6 +408,10 @@ final class AppState {
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated
             savePairedDevice()
+            // Mark connected device as online
+            if let idx = pairedDevices.firstIndex(where: { $0.id == remoteServerId || $0.ip == remoteServerIP }) {
+                pairedDevices[idx].isOnline = true
+            }
             triedServerId = nil
             HapticManager.success()
             if autoJumpToInput { selectedTab = 1 }

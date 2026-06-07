@@ -109,8 +109,27 @@ struct ConnectionView: View {
                 .padding(.bottom, 20)
             }
             .navigationTitle("连接")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        HapticManager.impact(.light)
+                        appState.probeAllDevices()
+                    } label: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .frame(width: 20, height: 20)
+                            .rotationEffect(.degrees(appState.isProbing ? 360 : 0))
+                            .animation(
+                                appState.isProbing
+                                    ? .linear(duration: 0.8).repeatForever(autoreverses: false)
+                                    : .default,
+                                value: appState.isProbing
+                            )
+                    }
+                }
+            }
             .onAppear {
                 detectSubnet()
+                appState.probeAllDevices()
                 withAnimation {
                     cardsAppeared = true
                 }

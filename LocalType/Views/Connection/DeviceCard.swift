@@ -56,7 +56,7 @@ struct DeviceCard: View {
                 } else if isPaired {
                     Image(systemName: "wifi")
                         .font(.title3)
-                        .foregroundStyle(appState.accentColor.color)
+                        .foregroundStyle(device.isOnline ? appState.accentColor.color : Color(.tertiaryLabel))
                 }
             }
             .padding(14)

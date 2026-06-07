@@ -65,6 +65,11 @@ struct MessageBubble: View {
                 appeared = true
             }
         }
+        .contextMenu {
+            contextMenuContent
+        } preview: {
+            bubblePreview
+        }
     }
 
     // MARK: - Classic (iMessage style)
@@ -91,6 +96,11 @@ struct MessageBubble: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 appeared = true
             }
+        }
+        .contextMenu {
+            contextMenuContent
+        } preview: {
+            bubblePreview
         }
     }
 
@@ -123,6 +133,25 @@ struct MessageBubble: View {
                 appeared = true
             }
         }
+        .contextMenu {
+            contextMenuContent
+        } preview: {
+            bubblePreview
+        }
+    }
+
+    // MARK: - Bubble Preview (for context menu)
+
+    private var bubblePreview: some View {
+        Text(message.text)
+            .font(.body)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .lineLimit(1)
+            .frame(maxWidth: 260, alignment: .trailing)
+            .background(appState.accentColor.color.opacity(0.15), in: .rect(cornerRadius: 18))
+            .glassEffect(.regular, in: .rect(cornerRadius: 18))
+            .padding(4)
     }
 
     // MARK: - Metadata Row
@@ -158,6 +187,32 @@ struct MessageBubble: View {
             Image(systemName: "exclamationmark.circle.fill")
                 .font(.caption2)
                 .foregroundStyle(.red)
+        }
+    }
+
+    // MARK: - Context Menu
+
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        Button {
+            UIPasteboard.general.string = message.text
+        } label: {
+            Label("复制", systemImage: "doc.on.doc")
+        }
+
+        Button {
+            appState.inputText = message.text
+        } label: {
+            Label("再次编辑", systemImage: "pencil")
+        }
+
+        Button {
+            appState.inputText = message.text
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                appState.sendText()
+            }
+        } label: {
+            Label("再次发送", systemImage: "arrow.up.circle")
         }
     }
 

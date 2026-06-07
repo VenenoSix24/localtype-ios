@@ -69,6 +69,9 @@ final class AppState {
     var bubbleStyle: BubbleStyle = .liquidGlass {
         didSet { storage.bubbleStyle = bubbleStyle.rawValue }
     }
+    var autoJumpToInput: Bool = false {
+        didSet { storage.autoJumpToInput = autoJumpToInput }
+    }
 
     // MARK: - Pairing
     var showingPairingSheet: Bool = false
@@ -82,6 +85,7 @@ final class AppState {
     private let ws = WebSocketService()
     private var lastConnectedIP: String?
     private var connectTimer: DispatchSourceTimer?
+    private var triedServerId: String?  // serverId whose token was used for auth
 
     init() {
         deviceId = storage.deviceId
@@ -106,6 +110,7 @@ final class AppState {
         colorScheme = storage.colorScheme
         accentColor = ThemeColor(rawValue: storage.accentColor) ?? .blue
         bubbleStyle = BubbleStyle(rawValue: storage.bubbleStyle) ?? .liquidGlass
+        autoJumpToInput = storage.autoJumpToInput
         currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
     }
 
@@ -150,9 +155,22 @@ final class AppState {
             self.connectionStatus = .connected
             self.addSystemMessage("已连接到 \(self.remoteServerName)")
             let tokens = self.storage.loadTokens()
-            let token = !self.remoteServerId.isEmpty
-                ? tokens[self.remoteServerId]
-                : tokens[self.remoteServerIP]
+            // Find token: by serverId → by IP → by any paired device (IP may have changed)
+            let token: String?
+            var matchedServerId: String? = nil
+            if !self.remoteServerId.isEmpty {
+                token = tokens[self.remoteServerId]
+            } else if let t = tokens[self.remoteServerIP] {
+                token = t
+            } else {
+                // IP changed — try paired devices with serverId-based tokens
+                let match = self.pairedDevices
+                    .filter { !$0.id.isEmpty && $0.id != $0.ip }
+                    .first { tokens[$0.id] != nil }
+                token = match.flatMap { tokens[$0.id] }
+                matchedServerId = match?.id
+            }
+            self.triedServerId = matchedServerId
             if let token {
                 self.ws.send(WebSocketService.authMessage(deviceId: self.deviceId, token: token))
             } else {
@@ -181,17 +199,23 @@ final class AppState {
     // MARK: - Connection
 
     func connect(to ip: String) {
-        // Allow reconnecting even if currently connecting (cancel previous)
-        if connectionStatus == .connecting {
-            cancelConnect()
-        }
-        guard !(connectionStatus == .connected && lastConnectedIP == ip) else { return }
+        // Fully clean up any existing connection attempt
+        connectTimer?.cancel()
+        connectTimer = nil
+        ws.disconnect()
 
-        if let d = discoveredDevices.first(where: { $0.ip == ip }) ?? pairedDevices.first(where: { $0.ip == ip }) {
+        if let d = discoveredDevices.first(where: { $0.ip == ip }) {
+            // Found via discovery — has serverId
+            remoteServerName = d.name
+            remoteServerId = d.id
+            remoteServerOS = d.os ?? ""
+        } else if let d = pairedDevices.first(where: { $0.ip == ip }) {
+            // Found in paired list by IP
             remoteServerName = d.name
             remoteServerId = d.id
             remoteServerOS = d.os ?? ""
         } else {
+            // New IP — serverId unknown, will be set after auth
             remoteServerName = "桌面端 (\(ip))"
             remoteServerId = ""
         }
@@ -202,17 +226,15 @@ final class AppState {
         authStatus = .unauthenticated
         ws.connect(to: ip)
 
-        // 10 second timeout
-        let timer = DispatchSource.makeTimerSource()
-        timer.schedule(deadline: .now() + 10)
+        // 5 second timeout
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 5)
         timer.setEventHandler { [weak self] in
-            DispatchQueue.main.async {
-                guard let self, self.connectionStatus == .connecting else { return }
-                self.connectionStatus = .error
-                self.ws.disconnect()
-                self.addSystemMessage("连接超时")
-                HapticManager.error()
-            }
+            guard let self, self.connectionStatus == .connecting else { return }
+            self.connectionStatus = .error
+            self.ws.disconnect()
+            self.addSystemMessage("连接失败，请检查电脑端是否在线或 IP 地址是否正确")
+            HapticManager.error()
         }
         self.connectTimer = timer
         timer.resume()
@@ -221,11 +243,12 @@ final class AppState {
     func cancelConnect() {
         connectTimer?.cancel()
         connectTimer = nil
-        ws.disconnect()
+        ws.disconnect(sendClose: false)  // Connection not fully established, no close frame needed
         if connectionStatus == .connecting {
             connectionStatus = .disconnected
             authStatus = .unauthenticated
         }
+        showingPairingSheet = false
     }
 
     func disconnect() {
@@ -239,6 +262,8 @@ final class AppState {
         authStatus = .unauthenticated
         lastConnectedIP = nil
         remoteServerName = ""
+        triedServerId = nil
+        showingPairingSheet = false
     }
 
     // MARK: - Message Handling
@@ -257,6 +282,10 @@ final class AppState {
         case "pairingsuccess":
             connectTimer?.cancel()
             connectTimer = nil
+            // Recover serverId from the token we tried (IP may have changed)
+            if remoteServerId.isEmpty, let tried = triedServerId {
+                remoteServerId = tried
+            }
             if let token = json["token"] as? String {
                 let key = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
                 var tokens = storage.loadTokens()
@@ -266,17 +295,23 @@ final class AppState {
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated
             savePairedDevice()
+            triedServerId = nil
             HapticManager.success()
-            selectedTab = 1
+            if autoJumpToInput { selectedTab = 1 }
 
         case "authsuccess":
             connectTimer?.cancel()
             connectTimer = nil
+            // Recover serverId from the token we tried (IP may have changed)
+            if remoteServerId.isEmpty, let tried = triedServerId {
+                remoteServerId = tried
+            }
             if let os = json["os"] as? String { remoteServerOS = os }
             authStatus = .authenticated
             savePairedDevice()
+            triedServerId = nil
             HapticManager.success()
-            selectedTab = 1
+            if autoJumpToInput { selectedTab = 1 }
 
         case "authfailed":
             authStatus = .unauthenticated
@@ -289,6 +324,8 @@ final class AppState {
 
         case "unpaired":
             let key = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
+            pairedDevices.removeAll(where: { $0.id == key })
+            storage.savePairedDevices(pairedDevices)
             var tokens = storage.loadTokens()
             tokens.removeValue(forKey: key)
             storage.saveTokens(tokens)
@@ -318,14 +355,25 @@ final class AppState {
 
     private func savePairedDevice() {
         guard !remoteServerIP.isEmpty else { return }
+        let deviceId = remoteServerId.isEmpty ? remoteServerIP : remoteServerId
         let device = DiscoveredDevice(
-            id: remoteServerId.isEmpty ? remoteServerIP : remoteServerId,
+            id: deviceId,
             name: remoteServerName,
             ip: remoteServerIP,
             os: remoteServerOS,
             discoveredAt: .now
         )
-        if let idx = pairedDevices.firstIndex(where: { $0.id == device.id }) {
+
+        // Match by serverId first (stable identity), then by IP as fallback
+        let idx: Int?
+        if !remoteServerId.isEmpty {
+            idx = pairedDevices.firstIndex(where: { $0.id == remoteServerId })
+        } else {
+            idx = pairedDevices.firstIndex(where: { $0.ip == remoteServerIP })
+        }
+
+        if let idx {
+            // Update existing device (IP may have changed)
             pairedDevices[idx] = device
         } else {
             pairedDevices.insert(device, at: 0)
@@ -347,6 +395,10 @@ final class AppState {
     }
 
     func removePairedDevice(id: String) {
+        if connectionStatus == .connected && (remoteServerId == id || remoteServerIP == id) {
+            ws.send(WebSocketService.unpairMessage())
+            disconnect()
+        }
         pairedDevices.removeAll(where: { $0.id == id })
         storage.savePairedDevices(pairedDevices)
         var tokens = storage.loadTokens()
@@ -510,8 +562,20 @@ final class AppState {
     // MARK: - App Lifecycle
 
     func onAppResume() {
-        if lastConnectedIP != nil && connectionStatus == .disconnected {
-            connect(to: lastConnectedIP!)
+        if let ip = lastConnectedIP, connectionStatus == .disconnected {
+            connect(to: ip)
+        }
+    }
+
+    func onAppBackground() {
+        // Disconnect cleanly so server knows we're gone
+        if connectionStatus == .connected || connectionStatus == .connecting {
+            connectTimer?.cancel()
+            connectTimer = nil
+            ws.disconnect()
+            connectionStatus = .disconnected
+            authStatus = .unauthenticated
+            addSystemMessage("已断开连接（进入后台）")
         }
     }
 }

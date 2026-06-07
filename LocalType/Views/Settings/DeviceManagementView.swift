@@ -69,11 +69,40 @@ struct DeviceManagementView: View {
                         }
                     }
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
+                        Button {
                             showUnpairConfirm = device
                         } label: {
                             Label("移除", systemImage: "trash")
                         }
+                        .tint(.red)
+
+                        Button {
+                            aliasText = device.alias ?? ""
+                            editingDevice = device
+                        } label: {
+                            Label("重命名", systemImage: "square.and.pencil")
+                        }
+                        .tint(.blue)
+                    }
+                    .confirmationDialog(
+                        "确定要取消与「\(device.displayName)」的配对吗？",
+                        isPresented: .init(
+                            get: { showUnpairConfirm?.id == device.id },
+                            set: { if !$0 { showUnpairConfirm = nil } }
+                        ),
+                        titleVisibility: .visible
+                    ) {
+                        Button("取消配对", role: .destructive) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                appState.removePairedDevice(id: device.id)
+                            }
+                            showUnpairConfirm = nil
+                        }
+                        Button("取消", role: .cancel) {
+                            showUnpairConfirm = nil
+                        }
+                    } message: {
+                        Text("取消后需要重新配对才能连接。")
                     }
                 }
             }
@@ -94,22 +123,6 @@ struct DeviceManagementView: View {
         } message: {
             if let device = editingDevice {
                 Text("当前名称：\(device.name)")
-            }
-        }
-        .alert("确认取消配对", isPresented: .init(
-            get: { showUnpairConfirm != nil },
-            set: { if !$0 { showUnpairConfirm = nil } }
-        )) {
-            Button("取消", role: .cancel) { showUnpairConfirm = nil }
-            Button("取消配对", role: .destructive) {
-                if let device = showUnpairConfirm {
-                    appState.removePairedDevice(id: device.id)
-                }
-                showUnpairConfirm = nil
-            }
-        } message: {
-            if let device = showUnpairConfirm {
-                Text("确定要取消与「\(device.displayName)」的配对吗？\n取消后需要重新配对才能连接。")
             }
         }
     }

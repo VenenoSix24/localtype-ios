@@ -7,7 +7,7 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
     private var reconnectTimer: DispatchSourceTimer?
     private var reconnectAttempts = 0
     private let maxReconnectAttempts = 5
-    private let queue = DispatchQueue(label: "websocket", qos: .userInitiated)
+    private var isDisconnecting = false
 
     var onMessage: (@MainActor @Sendable ([String: Any]) -> Void)?
     var onConnected: (@MainActor @Sendable () -> Void)?
@@ -26,15 +26,21 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
     // MARK: - Public API
 
     func connect(to ip: String) {
+        isDisconnecting = false
         lastConnectedIP = ip
         reconnectAttempts = 0
         doConnect(ip: ip)
     }
 
-    func disconnect() {
+    func disconnect(sendClose: Bool = true) {
+        isDisconnecting = true
         stopReconnect()
         stopHeartbeat()
-        task?.cancel(with: .normalClosure, reason: nil)
+        if sendClose, let task {
+            // Send WebSocket close frame so server knows we're disconnecting
+            task.send(.string("{\"type\":\"close\"}")) { _ in }
+            task.cancel(with: .goingAway, reason: nil)
+        }
         task = nil
         lastConnectedIP = nil
         reconnectAttempts = 0
@@ -45,7 +51,7 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
               let str = String(data: data, encoding: .utf8) else { return }
         task?.send(.string(str)) { [weak self] error in
             if let error {
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     self?.onError?("发送失败: \(error.localizedDescription)")
                 }
             }
@@ -59,34 +65,39 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
     // MARK: - Private
 
     private func doConnect(ip: String) {
+        guard !isDisconnecting else { return }
         guard let url = URL(string: "wss://\(ip):8765") else { return }
-        let task = session?.webSocketTask(with: url)
-        self.task = task
-        task?.resume()
+        let newTask = session?.webSocketTask(with: url)
+        self.task = newTask
+        newTask?.resume()
         receiveLoop()
     }
 
     private func receiveLoop() {
-        task?.receive { [weak self] result in
-            guard let self else { return }
-            switch result {
-            case .success(let message):
-                switch message {
-                case .string(let text):
-                    self.handleText(text)
-                case .data(let data):
-                    if let text = String(data: data, encoding: .utf8) {
+        guard let currentTask = task, !isDisconnecting else { return }
+        currentTask.receive { [weak self] result in
+            // receive() callback may fire on URLSession's internal queue, NOT on delegateQueue.
+            // Dispatch ALL state access to MainActor.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard self.task === currentTask, !self.isDisconnecting else { return }
+                switch result {
+                case .success(let message):
+                    switch message {
+                    case .string(let text):
                         self.handleText(text)
+                    case .data(let data):
+                        if let text = String(data: data, encoding: .utf8) {
+                            self.handleText(text)
+                        }
+                    @unknown default:
+                        break
                     }
-                @unknown default:
-                    break
-                }
-                self.receiveLoop()
-            case .failure:
-                DispatchQueue.main.async {
+                    self.receiveLoop()
+                case .failure:
                     self.onDisconnected?()
+                    self.tryReconnect()
                 }
-                self.tryReconnect()
             }
         }
     }
@@ -94,8 +105,8 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
     private func handleText(_ text: String) {
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
-        DispatchQueue.main.async {
-            self.onMessage?(json)
+        Task { @MainActor [weak self] in
+            self?.onMessage?(json)
         }
     }
 
@@ -103,7 +114,7 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
 
     func startHeartbeat() {
         stopHeartbeat()
-        let timer = DispatchSource.makeTimerSource(queue: queue)
+        let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(deadline: .now() + 25, repeating: 25)
         timer.setEventHandler { [weak self] in
             self?.send(["type": "ping"])
@@ -120,12 +131,15 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
     // MARK: - Reconnect
 
     private func tryReconnect() {
-        guard reconnectAttempts < maxReconnectAttempts, let ip = lastConnectedIP else {
+        guard !isDisconnecting,
+              reconnectAttempts < maxReconnectAttempts,
+              let ip = lastConnectedIP else {
             stopReconnect()
             return
         }
         reconnectAttempts += 1
-        let timer = DispatchSource.makeTimerSource(queue: queue)
+        stopReconnect()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(deadline: .now() + 2)
         timer.setEventHandler { [weak self] in
             self?.doConnect(ip: ip)
@@ -143,10 +157,11 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
 
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask,
                     didOpenWithProtocol protocol: String?) {
-        stopReconnect()
-        reconnectAttempts = 0
-        startHeartbeat()
-        DispatchQueue.main.async {
+        Task { @MainActor [weak self] in
+            guard let self, !self.isDisconnecting else { return }
+            self.stopReconnect()
+            self.reconnectAttempts = 0
+            self.startHeartbeat()
             self.onConnected?()
         }
     }
@@ -154,7 +169,6 @@ final class WebSocketService: NSObject, @unchecked Sendable, URLSessionDelegate,
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     didReceive challenge: URLAuthenticationChallenge,
                     completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        // Accept self-signed certificates for local network connections
         if let trust = challenge.protectionSpace.serverTrust {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {

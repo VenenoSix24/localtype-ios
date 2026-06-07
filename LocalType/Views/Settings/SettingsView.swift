@@ -12,6 +12,7 @@ struct SettingsView: View {
     ]
 
     var body: some View {
+        @Bindable var state = appState
         List {
             // MARK: - Device Name
             Section {
@@ -191,6 +192,26 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 }
+            }
+
+            // MARK: - Connection
+            Section("连接") {
+                Toggle(isOn: $state.autoJumpToInput) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.right.circle")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("连接后跳转输入页")
+                                .font(.body)
+                            Text("连接成功后自动切换到输入页面")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                .tint(appState.accentColor.color)
             }
 
             // MARK: - Update

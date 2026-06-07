@@ -33,11 +33,41 @@ struct PhraseManagementView: View {
                         editingPhrase = phrase
                     }
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
+                        Button {
                             showDeleteConfirm = phrase
                         } label: {
                             Label("删除", systemImage: "trash")
                         }
+                        .tint(.red)
+
+                        Button {
+                            labelText = phrase.label
+                            contentText = phrase.content
+                            editingPhrase = phrase
+                        } label: {
+                            Label("编辑", systemImage: "square.and.pencil")
+                        }
+                        .tint(.blue)
+                    }
+                    .confirmationDialog(
+                        "确定要删除「\(phrase.label)」吗？",
+                        isPresented: .init(
+                            get: { showDeleteConfirm?.id == phrase.id },
+                            set: { if !$0 { showDeleteConfirm = nil } }
+                        ),
+                        titleVisibility: .visible
+                    ) {
+                        Button("删除", role: .destructive) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                appState.removeQuickPhrase(id: phrase.id)
+                            }
+                            showDeleteConfirm = nil
+                        }
+                        Button("取消", role: .cancel) {
+                            showDeleteConfirm = nil
+                        }
+                    } message: {
+                        Text("删除后无法恢复。")
                     }
                 }
             }
@@ -74,22 +104,6 @@ struct PhraseManagementView: View {
                 editingPhrase = nil
             }
             .disabled(labelText.trimmingCharacters(in: .whitespaces).isEmpty || contentText.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
-        .alert("确认删除", isPresented: .init(
-            get: { showDeleteConfirm != nil },
-            set: { if !$0 { showDeleteConfirm = nil } }
-        )) {
-            Button("取消", role: .cancel) { showDeleteConfirm = nil }
-            Button("删除", role: .destructive) {
-                if let phrase = showDeleteConfirm {
-                    appState.removeQuickPhrase(id: phrase.id)
-                }
-                showDeleteConfirm = nil
-            }
-        } message: {
-            if let phrase = showDeleteConfirm {
-                Text("确定要删除「\(phrase.label)」吗？")
-            }
         }
     }
 

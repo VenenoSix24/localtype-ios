@@ -117,4 +117,9 @@ final class StorageService: @unchecked Sendable {
         get { defaults.string(forKey: "bubble_style") ?? "liquidGlass" }
         set { defaults.set(newValue, forKey: "bubble_style") }
     }
+
+    var autoJumpToInput: Bool {
+        get { defaults.bool(forKey: "auto_jump_to_input") }
+        set { defaults.set(newValue, forKey: "auto_jump_to_input") }
+    }
 }

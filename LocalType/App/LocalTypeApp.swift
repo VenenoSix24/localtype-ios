@@ -20,6 +20,9 @@ struct LocalTypeApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     appState.onAppResume()
                 }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                    appState.onAppBackground()
+                }
         }
     }
 }

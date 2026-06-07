@@ -38,6 +38,7 @@ struct QuickPhrasePanel: View {
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
+                            .contentShape(Rectangle())
                         }
                         .glassEffect(.regular, in: .rect(cornerRadius: 12))
                         .transition(.scale.combined(with: .opacity))

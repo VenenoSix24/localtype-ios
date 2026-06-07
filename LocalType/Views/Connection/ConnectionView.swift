@@ -283,7 +283,7 @@ struct ConnectionView: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     case .error:
-                        Text("连接超时或失败")
+                        Text("电脑端离线或地址错误")
                             .font(.caption)
                             .foregroundStyle(.red)
                     }

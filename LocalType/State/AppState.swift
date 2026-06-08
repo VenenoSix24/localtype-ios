@@ -74,6 +74,10 @@ final class AppState {
         didSet { storage.autoJumpToInput = autoJumpToInput }
     }
 
+    var hapticEnabled: Bool = true {
+        didSet { storage.hapticEnabled = hapticEnabled }
+    }
+
     // MARK: - Pairing
     var showingPairingSheet: Bool = false
 
@@ -116,6 +120,7 @@ final class AppState {
         accentColor = ThemeColor(rawValue: storage.accentColor) ?? .blue
         bubbleStyle = BubbleStyle(rawValue: storage.bubbleStyle) ?? .liquidGlass
         autoJumpToInput = storage.autoJumpToInput
+        hapticEnabled = storage.hapticEnabled
         currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
     }
 

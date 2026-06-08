@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @State private var editingName = false
     @State private var nameText = ""
+    @State private var showBubbleSheet = false
 
     private let themes = [
         ("system", "跟随系统", "circle.lefthalf.filled"),
@@ -98,6 +99,41 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                 }
 
+                // Bubble Style
+                Button {
+                    showBubbleSheet = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        Text("聊天气泡")
+                        Spacer()
+                        Text(appState.bubbleStyle.name)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.quaternary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .confirmationDialog("聊天气泡风格", isPresented: $showBubbleSheet, titleVisibility: .visible) {
+                    ForEach(BubbleStyle.allCases) { style in
+                        Button(style.name) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                appState.bubbleStyle = style
+                            }
+                            HapticManager.selection()
+                        }
+                    }
+                    Button("取消", role: .cancel) {}
+                } message: {
+                    Text("选择你喜欢的聊天气泡风格")
+                }
+
                 // Theme Color
                 VStack(alignment: .leading, spacing: 10) {
                     Text("主题色")
@@ -132,45 +168,10 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
                     }
                 }
-
-                // Bubble Style
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("聊天气泡")
-                        .font(.body)
-                    ForEach(BubbleStyle.allCases) { style in
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                appState.bubbleStyle = style
-                            }
-                            HapticManager.selection()
-                        } label: {
-                            HStack(spacing: 12) {
-                                bubblePreview(for: style)
-                                    .frame(width: 44, height: 28)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(style.name)
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                    Text(style.description)
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                Spacer()
-                                if appState.bubbleStyle == style {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(appState.accentColor.color)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
 
-            // MARK: - Injection Method
-            Section("输入方式") {
+            // MARK: - General
+            Section("通用") {
                 ForEach([("unicode", "Unicode 直接输入", "keyboard"), ("clipboard", "剪贴板粘贴", "doc.on.clipboard")], id: \.0) { method in
                     Button {
                         appState.injectionMethod = method.0
@@ -192,10 +193,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-            }
 
-            // MARK: - Connection
-            Section("连接") {
                 Toggle(isOn: $state.autoJumpToInput) {
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.right.circle")
@@ -212,10 +210,27 @@ struct SettingsView: View {
                     }
                 }
                 .tint(appState.accentColor.color)
+
+                Toggle(isOn: $state.hapticEnabled) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "hand.tap")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("触觉反馈")
+                                .font(.body)
+                            Text("操作时的振动反馈")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                .tint(appState.accentColor.color)
             }
 
-            // MARK: - Update
-            Section("版本") {
+            // MARK: - About
+            Section {
                 Button {
                     Task { await appState.checkForUpdate(silent: false) }
                 } label: {
@@ -238,10 +253,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(appState.isCheckingUpdate)
-            }
 
-            // MARK: - About
-            Section {
                 Link(destination: URL(string: "https://github.com/VenenoSix24/localtype")!) {
                     HStack(spacing: 12) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
@@ -315,24 +327,6 @@ struct SettingsView: View {
             }
         } message: {
             Text("当前名称：\(appState.deviceName)")
-        }
-    }
-
-    // MARK: - Bubble Preview
-
-    @ViewBuilder
-    private func bubblePreview(for style: BubbleStyle) -> some View {
-        switch style {
-        case .liquidGlass:
-            RoundedRectangle(cornerRadius: 8)
-                .fill(appState.accentColor.color.opacity(0.15))
-                .glassEffect(.regular, in: .rect(cornerRadius: 8))
-        case .classic:
-            RoundedRectangle(cornerRadius: 8)
-                .fill(appState.accentColor.color)
-        case .minimal:
-            RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(appState.accentColor.color, lineWidth: 1.5)
         }
     }
 }

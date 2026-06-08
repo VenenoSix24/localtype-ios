@@ -122,4 +122,9 @@ final class StorageService: @unchecked Sendable {
         get { defaults.bool(forKey: "auto_jump_to_input") }
         set { defaults.set(newValue, forKey: "auto_jump_to_input") }
     }
+
+    var hapticEnabled: Bool {
+        get { defaults.object(forKey: "haptic_enabled") == nil ? true : defaults.bool(forKey: "haptic_enabled") }
+        set { defaults.set(newValue, forKey: "haptic_enabled") }
+    }
 }

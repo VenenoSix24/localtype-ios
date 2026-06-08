@@ -238,41 +238,72 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(appState.isCheckingUpdate)
-
-                if let info = appState.updateInfo, info.available {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("新版本 v\(info.latestVersion)")
-                                .font(.body.weight(.medium))
-                                .foregroundStyle(appState.accentColor.color)
-                            Spacer()
-                            Button("跳过") { appState.skipCurrentUpdate() }
-                                .font(.caption)
-                        }
-                        if !info.releaseNotes.isEmpty {
-                            Text(info.releaseNotes)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(4)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
             }
 
             // MARK: - About
-            Section("关于") {
-                HStack(spacing: 12) {
-                    Image(systemName: "info.circle")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 32)
-                    Text("LocalType")
-                    Spacer()
-                    Text("v\(appState.currentVersion)")
-                        .foregroundStyle(.tertiary)
-                        .monospaced()
+            Section {
+                Link(destination: URL(string: "https://github.com/VenenoSix24/localtype")!) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        Text("GitHub 仓库")
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+
+                Link(destination: URL(string: "https://github.com/VenenoSix24/localtype/issues")!) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.bubble")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        Text("反馈问题")
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Link(destination: URL(string: "https://github.com/VenenoSix24")!) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.circle")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        Text("开发者")
+                        Spacer()
+                        Text("VenenoSix24")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } footer: {
+                HStack(spacing: 4) {
+                    Text("LocalType \(appState.currentVersion)")
+                        .font(.caption2)
+                        .foregroundStyle(Color(.systemGray))
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption2)
+                        .foregroundStyle(appState.accentColor.color)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
             }
         }
         .navigationTitle("设置")

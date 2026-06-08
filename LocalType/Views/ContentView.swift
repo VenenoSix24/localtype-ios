@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
+    @State private var showUpdateSheet = false
 
     var body: some View {
         @Bindable var state = appState
@@ -32,6 +33,19 @@ struct ContentView: View {
             }
         }
         .tint(appState.accentColor.color)
+        .onAppear {
+            Task { await appState.checkForUpdate(silent: true) }
+        }
+        .onChange(of: appState.updateInfo) { _, info in
+            if let info, info.available {
+                showUpdateSheet = true
+            }
+        }
+        .sheet(isPresented: $showUpdateSheet) {
+            if let info = appState.updateInfo, info.available {
+                UpdateSheet(info: info, isPresented: $showUpdateSheet)
+            }
+        }
     }
 }
 

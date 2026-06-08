@@ -629,7 +629,21 @@ final class AppState {
     func checkForUpdate(silent: Bool = false) async {
         isCheckingUpdate = true
         do {
-            updateInfo = try await UpdateService.checkForUpdate()
+            let info = try await UpdateService.checkForUpdate()
+            // Manual check: always show if update exists, ignore skip
+            if !silent && info.skipped {
+                updateInfo = UpdateInfo(
+                    currentVersion: info.currentVersion,
+                    latestVersion: info.latestVersion,
+                    releaseNotes: info.releaseNotes,
+                    downloadUrl: info.downloadUrl,
+                    repoUrl: info.repoUrl,
+                    available: true,
+                    skipped: false
+                )
+            } else {
+                updateInfo = info
+            }
         } catch {
             if !silent { updateInfo = nil }
         }

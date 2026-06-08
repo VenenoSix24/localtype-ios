@@ -99,10 +99,10 @@ struct ConnectionView: View {
                     } label: {
                         Text("没有找到设备？试试用完整 IP 地址连接")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(appState.accentColor.color)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 4)
+                    .padding(.top, 12)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -385,6 +385,15 @@ struct ConnectionView: View {
         }
     }
 
+    private func osDisplayName(_ os: String) -> String {
+        switch os {
+        case "macos": return "macOS"
+        case "windows": return "Windows"
+        case "linux": return "Linux"
+        default: return os
+        }
+    }
+
     private var remoteDeviceLabel: String {
         switch displayStatus {
         case .connected: return cleanServerName
@@ -433,10 +442,19 @@ struct ConnectionView: View {
 
                     switch displayStatus {
                     case .connected:
-                        Text("\(cleanServerName) · \(appState.remoteServerIP)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospaced()
+                        HStack(spacing: 6) {
+                            Text(cleanServerName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if !appState.remoteServerOS.isEmpty {
+                                Text(osDisplayName(appState.remoteServerOS))
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(appState.accentColor.color)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(appState.accentColor.color.opacity(0.1), in: .capsule)
+                            }
+                        }
                     case .disconnected:
                         Text("选择设备或输入 IP 连接")
                             .font(.caption)
@@ -473,11 +491,11 @@ struct ConnectionView: View {
                         appState.cancelConnect()
                     } label: {
                         Text("取消")
-                            .font(.caption.weight(.bold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 9)
                             .background(Color(.tertiarySystemFill), in: .capsule)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.red)
                     }
                     .transition(.scale.combined(with: .opacity))
                 default:

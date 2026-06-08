@@ -1,10 +1,11 @@
 import Foundation
 
-struct UpdateInfo: Sendable {
+struct UpdateInfo: Sendable, Equatable {
     let currentVersion: String
     let latestVersion: String
     let releaseNotes: String
     let downloadUrl: String
+    let repoUrl: String
     let available: Bool
     let skipped: Bool
 }
@@ -27,34 +28,33 @@ enum UpdateService {
         let tagName = (json["tag_name"] as? String) ?? ""
         let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
         let releaseNotes = (json["body"] as? String) ?? ""
+        let htmlUrl = (json["html_url"] as? String) ?? "https://github.com/VenenoSix24/localtype/releases/latest"
 
         if compareVersions(latestVersion, currentVersion) <= 0 {
             return UpdateInfo(currentVersion: currentVersion, latestVersion: latestVersion,
-                              releaseNotes: releaseNotes, downloadUrl: "", available: false, skipped: false)
+                              releaseNotes: releaseNotes, downloadUrl: "", repoUrl: htmlUrl,
+                              available: false, skipped: false)
         }
 
         let skipped = StorageService.shared.skippedVersion == latestVersion
 
         let assets = json["assets"] as? [[String: Any]] ?? []
-        let downloadUrl = findDownloadUrl(assets)
+        let downloadUrl = findDownloadUrl(assets) ?? htmlUrl
 
         return UpdateInfo(currentVersion: currentVersion, latestVersion: latestVersion,
-                          releaseNotes: releaseNotes, downloadUrl: downloadUrl,
-                          available: !skipped, skipped: skipped)
+                          releaseNotes: releaseNotes, downloadUrl: downloadUrl, repoUrl: htmlUrl,
+                          available: true, skipped: skipped)
     }
 
     static func skipVersion(_ version: String) {
         StorageService.shared.skippedVersion = version
     }
 
-    private static func findDownloadUrl(_ assets: [[String: Any]]) -> String {
+    private static func findDownloadUrl(_ assets: [[String: Any]]) -> String? {
         if let ipa = assets.first(where: { ($0["name"] as? String ?? "").hasSuffix(".ipa") }) {
-            return ipa["browser_download_url"] as? String ?? ""
+            return ipa["browser_download_url"] as? String
         }
-        if let first = assets.first {
-            return first["browser_download_url"] as? String ?? ""
-        }
-        return "https://github.com/VenenoSix24/localtype/releases/latest"
+        return nil
     }
 
     private static func compareVersions(_ a: String, _ b: String) -> Int {

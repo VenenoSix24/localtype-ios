@@ -36,12 +36,12 @@ struct DeviceCard: View {
                             .monospaced()
 
                         if let os = device.os {
-                            Text(os.uppercased())
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(.quaternary, in: .capsule)
+                            Text(osDisplayName(os))
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(appState.accentColor.color)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(appState.accentColor.color.opacity(0.1), in: .capsule)
                         }
                     }
                 }
@@ -81,6 +81,15 @@ struct DeviceCard: View {
         case "windows": return "pc"
         case "linux": return "terminal"
         default: return "display"
+        }
+    }
+
+    private func osDisplayName(_ os: String) -> String {
+        switch os {
+        case "macos": return "macOS"
+        case "windows": return "Windows"
+        case "linux": return "Linux"
+        default: return os
         }
     }
 }

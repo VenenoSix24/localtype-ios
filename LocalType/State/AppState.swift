@@ -475,12 +475,13 @@ final class AppState {
             discoveredAt: .now
         )
 
-        // Match by serverId first (stable identity), then by IP as fallback
+        // Match by serverId first (stable identity), then by IP, then by name
         let idx: Int?
         if !remoteServerId.isEmpty {
             idx = pairedDevices.firstIndex(where: { $0.id == remoteServerId })
         } else {
             idx = pairedDevices.firstIndex(where: { $0.ip == remoteServerIP })
+                ?? pairedDevices.firstIndex(where: { $0.name == cleanName && !cleanName.isEmpty })
         }
 
         if let idx {

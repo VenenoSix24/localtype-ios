@@ -54,7 +54,7 @@ struct MessageBubble: View {
                     .background(appState.accentColor.color.opacity(0.15), in: .rect(cornerRadius: 18))
                     .glassEffect(.regular, in: .rect(cornerRadius: 18))
 
-                metadataRow(foreground: .quaternary)
+                metadataRow(foreground: .secondary)
             }
         }
         .padding(.vertical, 1)
@@ -117,7 +117,7 @@ struct MessageBubble: View {
                 HStack(spacing: 4) {
                     Text(timeString)
                         .font(.caption2)
-                        .foregroundStyle(.quaternary)
+                        .foregroundStyle(.secondary)
                     statusIcon
                 }
             }

@@ -527,7 +527,7 @@ final class AppState {
 
     func sendText() {
         guard connectionStatus == .connected, authStatus == .authenticated else { return }
-        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = inputText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
 
         let msgId = "\(Int(Date().timeIntervalSince1970 * 1000))"

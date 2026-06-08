@@ -4,7 +4,6 @@ struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @State private var editingName = false
     @State private var nameText = ""
-    @State private var showBubbleSheet = false
 
     private let themes = [
         ("system", "跟随系统", "circle.lefthalf.filled"),
@@ -102,9 +101,8 @@ struct SettingsView: View {
                 }
 
                 // Bubble Style
-                Button {
-                    HapticManager.impact(.light)
-                    showBubbleSheet = true
+                NavigationLink {
+                    BubbleStyleView()
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "bubble.left.and.bubble.right")
@@ -116,25 +114,8 @@ struct SettingsView: View {
                         Text(appState.bubbleStyle.name)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.quaternary)
                     }
                     .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .confirmationDialog("聊天气泡风格", isPresented: $showBubbleSheet, titleVisibility: .visible) {
-                    ForEach(BubbleStyle.allCases) { style in
-                        Button(style.name) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                appState.bubbleStyle = style
-                            }
-                            HapticManager.selection()
-                        }
-                    }
-                    Button("取消", role: .cancel) {}
-                } message: {
-                    Text("选择你喜欢的聊天气泡风格")
                 }
 
                 // Theme Color
@@ -175,27 +156,21 @@ struct SettingsView: View {
 
             // MARK: - General
             Section("通用") {
-                ForEach([("unicode", "Unicode 直接输入", "keyboard"), ("clipboard", "剪贴板粘贴", "doc.on.clipboard")], id: \.0) { method in
-                    Button {
-                        HapticManager.selection()
-                        appState.injectionMethod = method.0
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: method.2)
-                                .font(.title3)
-                                .foregroundStyle(appState.accentColor.color)
-                                .frame(width: 32)
-                            Text(method.1)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            if appState.injectionMethod == method.0 {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(appState.accentColor.color)
-                            }
-                        }
-                        .contentShape(Rectangle())
+                NavigationLink {
+                    InjectionMethodView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "keyboard")
+                            .font(.title3)
+                            .foregroundStyle(appState.accentColor.color)
+                            .frame(width: 32)
+                        Text("输入方式")
+                        Spacer()
+                        Text(appState.injectionMethod == "unicode" ? "Unicode 直接输入" : "剪贴板粘贴")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                 }
 
                 Toggle(isOn: $state.autoJumpToInput) {
@@ -249,20 +224,26 @@ struct SettingsView: View {
                         Spacer()
                         if appState.isCheckingUpdate {
                             ProgressView()
+                                .transition(.scale.combined(with: .opacity))
                         } else {
                             Text("v\(appState.currentVersion)")
                                 .foregroundStyle(.secondary)
                                 .monospaced()
+                                .transition(.scale.combined(with: .opacity))
                         }
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(appState.isCheckingUpdate)
+                .animation(.easeInOut(duration: 0.2), value: appState.isCheckingUpdate)
 
                 Button {
                     HapticManager.impact(.light)
-                    UIApplication.shared.open(URL(string: "https://github.com/VenenoSix24/localtype")!)
+                    let url = URL(string: "https://github.com/VenenoSix24/localtype")!
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        UIApplication.shared.open(url)
+                    }
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
@@ -281,7 +262,10 @@ struct SettingsView: View {
 
                 Button {
                     HapticManager.impact(.light)
-                    UIApplication.shared.open(URL(string: "https://github.com/VenenoSix24/localtype/issues")!)
+                    let url = URL(string: "https://github.com/VenenoSix24/localtype/issues")!
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        UIApplication.shared.open(url)
+                    }
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.bubble")
@@ -300,7 +284,10 @@ struct SettingsView: View {
 
                 Button {
                     HapticManager.impact(.light)
-                    UIApplication.shared.open(URL(string: "https://github.com/VenenoSix24")!)
+                    let url = URL(string: "https://github.com/VenenoSix24")!
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        UIApplication.shared.open(url)
+                    }
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "person.circle")

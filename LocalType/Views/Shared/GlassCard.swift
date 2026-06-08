@@ -10,7 +10,7 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content
             .padding(20)
-            .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            .glassEffect(.regular, in: .rect(cornerRadius: 20))
     }
 }
 

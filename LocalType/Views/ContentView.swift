@@ -38,7 +38,7 @@ struct ContentView: View {
             Task { await appState.checkForUpdate(silent: true) }
         }
         .onChange(of: appState.updateInfo) { _, info in
-            if let info, info.available {
+            if let info, info.available, !info.skipped {
                 showUpdateSheet = true
             }
         }
@@ -49,4 +49,3 @@ struct ContentView: View {
         }
     }
 }
-

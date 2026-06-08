@@ -54,6 +54,7 @@ struct PairingSheet: View {
             // Buttons
             HStack(spacing: 12) {
                 Button {
+                    HapticManager.impact(.light)
                     appState.disconnect()
                 } label: {
                     Text("取消")
@@ -65,6 +66,7 @@ struct PairingSheet: View {
                 }
 
                 Button {
+                    HapticManager.impact(.light)
                     appState.submitPairingCode(code)
                 } label: {
                     Text("确认")

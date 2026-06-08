@@ -50,6 +50,7 @@ struct ConnectionView: View {
                     // Quick connect (subnet)
                     if detectedSubnet != nil {
                         Button {
+                            HapticManager.impact(.light)
                             useFullIP = false
                             showingManualConnect = true
                         } label: {
@@ -94,6 +95,7 @@ struct ConnectionView: View {
 
                     // Full IP fallback
                     Button {
+                        HapticManager.impact(.light)
                         useFullIP = true
                         showingManualConnect = true
                     } label: {
@@ -157,6 +159,7 @@ struct ConnectionView: View {
             }
 
             Button("连接") {
+                HapticManager.impact(.light)
                 let ip: String
                 if useFullIP || detectedSubnet == nil {
                     ip = fullIP
@@ -181,6 +184,7 @@ struct ConnectionView: View {
 
     private func connectWithDelay(_ ip: String) {
         guard !showConnecting, appState.connectionStatus != .connected else { return }
+        HapticManager.impact(.light)
         showConnecting = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             appState.connect(to: ip)

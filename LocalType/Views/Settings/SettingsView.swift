@@ -36,6 +36,7 @@ struct SettingsView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
+                    HapticManager.impact(.light)
                     nameText = appState.deviceName
                     editingName = true
                 }
@@ -79,6 +80,7 @@ struct SettingsView: View {
             Section("外观") {
                 ForEach(themes, id: \.0) { theme in
                     Button {
+                        HapticManager.selection()
                         appState.colorScheme = theme.0
                     } label: {
                         HStack(spacing: 12) {
@@ -101,6 +103,7 @@ struct SettingsView: View {
 
                 // Bubble Style
                 Button {
+                    HapticManager.impact(.light)
                     showBubbleSheet = true
                 } label: {
                     HStack(spacing: 12) {
@@ -174,6 +177,7 @@ struct SettingsView: View {
             Section("通用") {
                 ForEach([("unicode", "Unicode 直接输入", "keyboard"), ("clipboard", "剪贴板粘贴", "doc.on.clipboard")], id: \.0) { method in
                     Button {
+                        HapticManager.selection()
                         appState.injectionMethod = method.0
                     } label: {
                         HStack(spacing: 12) {
@@ -210,6 +214,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(appState.accentColor.color)
+                .onChange(of: state.autoJumpToInput) { _, _ in HapticManager.selection() }
 
                 Toggle(isOn: $state.hapticEnabled) {
                     HStack(spacing: 12) {
@@ -227,6 +232,7 @@ struct SettingsView: View {
                     }
                 }
                 .tint(appState.accentColor.color)
+                .onChange(of: state.hapticEnabled) { _, _ in HapticManager.selection() }
             }
 
             // MARK: - About
@@ -254,7 +260,10 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
                 .disabled(appState.isCheckingUpdate)
 
-                Link(destination: URL(string: "https://github.com/VenenoSix24/localtype")!) {
+                Button {
+                    HapticManager.impact(.light)
+                    UIApplication.shared.open(URL(string: "https://github.com/VenenoSix24/localtype")!)
+                } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
                             .font(.title3)
@@ -270,7 +279,10 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
-                Link(destination: URL(string: "https://github.com/VenenoSix24/localtype/issues")!) {
+                Button {
+                    HapticManager.impact(.light)
+                    UIApplication.shared.open(URL(string: "https://github.com/VenenoSix24/localtype/issues")!)
+                } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.bubble")
                             .font(.title3)
@@ -286,7 +298,10 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
-                Link(destination: URL(string: "https://github.com/VenenoSix24")!) {
+                Button {
+                    HapticManager.impact(.light)
+                    UIApplication.shared.open(URL(string: "https://github.com/VenenoSix24")!)
+                } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "person.circle")
                             .font(.title3)
@@ -315,7 +330,7 @@ struct SettingsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 12)
-                .padding(.bottom, 12)
+                .padding(.bottom, 16)
             }
         }
         .navigationTitle("设置")

@@ -41,6 +41,7 @@ struct UpdateSheet: View {
             // Buttons
             HStack(spacing: 12) {
                 Button {
+                    HapticManager.impact(.light)
                     appState.skipCurrentUpdate()
                     isPresented = false
                 } label: {
@@ -53,6 +54,7 @@ struct UpdateSheet: View {
                 }
 
                 Button {
+                    HapticManager.impact(.light)
                     if let url = URL(string: info.repoUrl) {
                         UIApplication.shared.open(url)
                     }

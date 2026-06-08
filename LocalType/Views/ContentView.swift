@@ -33,6 +33,7 @@ struct ContentView: View {
             }
         }
         .tint(appState.accentColor.color)
+        .onChange(of: state.selectedTab) { _, _ in HapticManager.selection() }
         .onAppear {
             Task { await appState.checkForUpdate(silent: true) }
         }

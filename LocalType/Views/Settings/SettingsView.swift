@@ -240,7 +240,7 @@ struct SettingsView: View {
 
                 Button {
                     HapticManager.impact(.light)
-                    let url = URL(string: "https://github.com/VenenoSix24/localtype")!
+                    let url = URL(string: "https://github.com/VenenoSix24/localtype-ios")!
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         UIApplication.shared.open(url)
                     }
@@ -262,7 +262,7 @@ struct SettingsView: View {
 
                 Button {
                     HapticManager.impact(.light)
-                    let url = URL(string: "https://github.com/VenenoSix24/localtype/issues")!
+                    let url = URL(string: "https://github.com/VenenoSix24/localtype-ios/issues")!
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         UIApplication.shared.open(url)
                     }

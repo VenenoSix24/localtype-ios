@@ -11,7 +11,7 @@ struct UpdateInfo: Sendable, Equatable {
 }
 
 enum UpdateService {
-    private static let apiURL = URL(string: "https://api.github.com/repos/VenenoSix24/localtype/releases/latest")!
+    private static let apiURL = URL(string: "https://api.github.com/repos/VenenoSix24/localtype-ios/releases/latest")!
 
     static func checkForUpdate() async throws -> UpdateInfo {
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
@@ -28,7 +28,7 @@ enum UpdateService {
         let tagName = (json["tag_name"] as? String) ?? ""
         let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
         let releaseNotes = (json["body"] as? String) ?? ""
-        let htmlUrl = (json["html_url"] as? String) ?? "https://github.com/VenenoSix24/localtype/releases/latest"
+        let htmlUrl = (json["html_url"] as? String) ?? "https://github.com/VenenoSix24/localtype-ios/releases/latest"
 
         if compareVersions(latestVersion, currentVersion) <= 0 {
             return UpdateInfo(currentVersion: currentVersion, latestVersion: latestVersion,

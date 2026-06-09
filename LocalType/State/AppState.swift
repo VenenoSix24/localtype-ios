@@ -64,7 +64,7 @@ final class AppState {
     var colorScheme: String = "system" {
         didSet { storage.colorScheme = colorScheme }
     }
-    var accentColor: ThemeColor = .blue {
+    var accentColor: ThemeColor = .green {
         didSet { storage.accentColor = accentColor.rawValue }
     }
     var bubbleStyle: BubbleStyle = .liquidGlass {

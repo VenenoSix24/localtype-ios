@@ -109,7 +109,7 @@ final class StorageService: @unchecked Sendable {
     }
 
     var accentColor: String {
-        get { defaults.string(forKey: "accent_color") ?? "blue" }
+        get { defaults.string(forKey: "accent_color") ?? "green" }
         set { defaults.set(newValue, forKey: "accent_color") }
     }
 

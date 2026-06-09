@@ -21,7 +21,7 @@ jobs:
       - name: Build .app
         run: |
           xcodebuild build \
-            -project LocalType_iOS.xcodeproj \
+            -project LocalType.xcodeproj \
             -scheme LocalType \
             -configuration Release \
             -sdk iphoneos \

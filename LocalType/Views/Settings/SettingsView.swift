@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var editingName = false
     @State private var nameText = ""
     @State private var showUpToDate = false
+    @State private var showUpdateFailed = false
 
     private let themes = [
         ("system", "跟随系统", "circle.lefthalf.filled"),
@@ -215,9 +216,20 @@ struct SettingsView: View {
             Section {
                 Button {
                     Task {
+                        let timeoutTask = Task {
+                            try? await Task.sleep(nanoseconds: 10_000_000_000)
+                            if appState.isCheckingUpdate {
+                                showUpdateFailed = true
+                            }
+                        }
                         await appState.checkForUpdate(silent: false)
-                        if let info = appState.updateInfo, !info.available {
-                            showUpToDate = true
+                        timeoutTask.cancel()
+                        if let info = appState.updateInfo {
+                            if !info.available {
+                                showUpToDate = true
+                            }
+                        } else {
+                            showUpdateFailed = true
                         }
                     }
                 } label: {
@@ -340,6 +352,11 @@ struct SettingsView: View {
             Button("好的", role: .cancel) {}
         } message: {
             Text("当前版本 v\(appState.currentVersion) 已是最新版")
+        }
+        .alert("检查更新失败", isPresented: $showUpdateFailed) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text("请检查网络连接后重试")
         }
     }
 }

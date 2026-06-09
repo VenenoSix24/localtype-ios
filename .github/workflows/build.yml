@@ -13,13 +13,10 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Build .app
         run: |
@@ -35,8 +32,9 @@ jobs:
 
       - name: Package .ipa
         run: |
+          APP=$(find Build -name "LocalType.app" -type d | head -1)
           mkdir -p Payload
-          cp -r Build/Build/Products/Release-iphoneos/LocalType.app Payload/
+          cp -r "$APP" Payload/
           zip -r LocalType.ipa Payload/
           rm -rf Payload
 
@@ -58,8 +56,5 @@ jobs:
             fi
             TAG="v$VERSION"
           fi
-          gh release create "$TAG" \
-            --draft \
-            --generate-notes \
-            --title "LocalType $TAG" \
-            LocalType.ipa
+          gh release create "$TAG" --draft --generate-notes --title "LocalType $TAG" LocalType.ipa \
+            || gh release upload "$TAG" LocalType.ipa --clobber

@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @State private var editingName = false
     @State private var nameText = ""
+    @State private var showUpToDate = false
 
     private let themes = [
         ("system", "跟随系统", "circle.lefthalf.filled"),
@@ -213,7 +214,12 @@ struct SettingsView: View {
             // MARK: - About
             Section {
                 Button {
-                    Task { await appState.checkForUpdate(silent: false) }
+                    Task {
+                        await appState.checkForUpdate(silent: false)
+                        if let info = appState.updateInfo, !info.available {
+                            showUpToDate = true
+                        }
+                    }
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "arrow.down.circle")
@@ -329,6 +335,11 @@ struct SettingsView: View {
             }
         } message: {
             Text("当前名称：\(appState.deviceName)")
+        }
+        .alert("已是最新版本", isPresented: $showUpToDate) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text("当前版本 v\(appState.currentVersion) 已是最新版")
         }
     }
 }

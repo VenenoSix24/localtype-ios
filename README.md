@@ -13,7 +13,10 @@
 > [!IMPORTANT]
 > **主仓库：[VenenoSix24/localtype](https://github.com/VenenoSix24/localtype)**
 
----
+<p>
+  <img src="LocalType-Hero.png" alt="LocalType Hero" />
+</p>
+
 
 ## 功能
 
@@ -24,7 +27,6 @@
 - **外观自定义** — 浅色模式、深色模式、多主题色、气泡样式
 - **聊天式体验** — 消息列表、发送状态、已发文本可复制/再次编辑/再次发送
 
----
 
 ## 快速上手
 
@@ -44,7 +46,6 @@ open LocalType_iOS.xcodeproj
 
 选择目标设备，⌘R 运行即可。
 
----
 
 ## 技术栈
 
@@ -55,7 +56,6 @@ open LocalType_iOS.xcodeproj
 | 本地存储  | UserDefaults + Codable                  |
 | 设计语言  | iOS 26 Liquid Glass（.glassEffect）     |
 
----
 
 ## 许可协议
 
